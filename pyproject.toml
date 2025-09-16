@@ -1,0 +1,19 @@
+[project]
+name = "clauth"
+version = "0.1.0"
+description = "Add your description here"
+readme = "README.md"
+authors = [
+    { name = "Mahmood.Khordoo", email = "Mahmood.Khordoo@riotinto.com" }
+]
+requires-python = ">=3.10"
+dependencies = [
+    "typer>=0.17.4",
+]
+
+[project.scripts]
+clauth = "clauth.cli:app"
+
+[build-system]
+requires = ["hatchling"]
+build-backend = "hatchling.build"
