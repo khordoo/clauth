@@ -168,8 +168,9 @@ def init(
             clear_screen()
             subprocess.run([claude_path], env=env, check=True)
         else:
-            typer.echo("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
-            typer.echo("Run the Claude Code CLI when you’re ready:  [bold]claude[/bold]")
+            typer.secho("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
+            typer.echo("Run the Claude Code CLI when you’re ready: ", nl=False)
+            typer.secho("claude", bold=True)
 
       
 
