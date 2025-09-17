@@ -98,6 +98,50 @@ clauth init \
   --session-name my-claude-session
 ```
 
+## Configuration Management
+
+CLAUTH provides configuration management commands to view, modify, and manage your settings.
+
+### Viewing Configuration
+
+```bash
+# Show current configuration settings
+clauth config show
+
+# Show configuration with file location
+clauth config show --path
+
+# Show configuration for a specific profile
+clauth config show --profile myteam --path
+```
+
+### Modifying Configuration
+
+```bash
+# Set individual configuration values
+clauth config set aws.region us-west-2
+clauth config set models.provider_filter anthropic
+clauth config set cli.auto_start false
+
+# Reset configuration to defaults
+clauth config reset
+
+# Reset specific profile configuration
+clauth config reset --profile myteam
+```
+
+### Profile Management
+
+```bash
+# List available configuration profiles
+clauth config profiles
+```
+
+Configuration files are stored in platform-appropriate locations:
+- **Windows**: `%APPDATA%\clauth\config.toml`
+- **Unix/Linux**: `~/.config/clauth/config.toml`
+- **Profiles**: Stored in `profiles/` subdirectory
+
 ## Integration Benefits
 
 ### For Individual Users

@@ -268,7 +268,12 @@ def config_show(
     profile: str = typer.Option(None, "--profile", help="Show specific profile configuration"),
     show_path: bool = typer.Option(False, "--path", help="Show configuration file location")
 ):
-    """Display current configuration."""
+    """Display current configuration.
+
+    Shows all configuration settings including AWS, model, and CLI preferences.
+    Use --path to show the location of the configuration file.
+    Use --profile to show configuration for a specific profile.
+    """
     config_manager = get_config_manager()
     config = config_manager.load(profile)
 
