@@ -10,6 +10,11 @@ from rich.console import Console
 from InquirerPy import get_style
 
 
+class ExecutableNotFoundError(Exception):
+    """Raised when executable cannot be found in system PATH."""
+    pass
+
+
 
 app = typer.Typer()
 env = os.environ.copy()
@@ -233,9 +238,17 @@ def init(
         if config.cli.auto_start:
             typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
             typer.secho("Step 3/3 — Launching Claude Code...",fg=typer.colors.BLUE)
-            claude_path = get_app_path(config.cli.claude_cli_name)
-            clear_screen()
-            subprocess.run([claude_path], env=env, check=True)
+            try:
+                claude_path = get_app_path(config.cli.claude_cli_name)
+                clear_screen()
+                subprocess.run([claude_path], env=env, check=True)
+            except ExecutableNotFoundError as e:
+                typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
+                typer.secho(f"Please install Claude Code CLI and ensure it's in your PATH.", fg=typer.colors.YELLOW)
+                raise typer.Exit(1)
+            except ValueError as e:
+                typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+                raise typer.Exit(1)
         else:
             typer.secho("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
             typer.echo("Run the Claude Code CLI when you're ready: ", nl=False)
@@ -270,6 +283,9 @@ def clear_screen():
 def get_app_path(exe_name: str = 'claude') -> str:
     """Find the full path to an executable in a cross-platform way.
 
+    On Windows, prefers .cmd and .exe versions when multiple variants exist,
+    matching the original behavior that selected the .cmd version specifically.
+
     Args:
         exe_name: Name of the executable to find
 
@@ -277,15 +293,28 @@ def get_app_path(exe_name: str = 'claude') -> str:
         Full path to the executable
 
     Raises:
-        SystemExit: If executable is not found
+        ExecutableNotFoundError: If executable is not found in PATH
+        ValueError: If executable name is invalid
     """
     if not exe_name or not exe_name.strip():
-        exit(f'Setup failed. Invalid executable name provided.')
+        raise ValueError(f'Invalid executable name provided: {exe_name!r}')
 
+    # First, try the basic lookup
     claude_path = shutil.which(exe_name)
     if claude_path is None:
-        exit(f'Setup failed. {exe_name} not found on the system. Please ensure it is installed and in your PATH.')
+        raise ExecutableNotFoundError(f'{exe_name} not found in system PATH. Please ensure it is installed and in your PATH.')
 
+    # On Windows, prefer .cmd/.exe versions if they exist (matches original behavior)
+    if os.name == 'nt':
+        preferred_extensions = ['.cmd', '.exe']
+        for ext in preferred_extensions:
+            if not exe_name.lower().endswith(ext):
+                preferred_path = shutil.which(exe_name + ext)
+                if preferred_path:
+                    typer.echo(f"Found multiple {exe_name} executables, using: {preferred_path}")
+                    return preferred_path
+
+    typer.echo(f"Using executable: {claude_path}")
     return claude_path
 
 
@@ -332,10 +361,17 @@ def claude(
 
     # Launch Claude Code
     typer.secho("Launching Claude Code with Bedrock configuration...", fg=typer.colors.BLUE)
-    claude_path = get_app_path(config.cli.claude_cli_name)
-    clear_screen()
     try:
+        claude_path = get_app_path(config.cli.claude_cli_name)
+        clear_screen()
         subprocess.run([claude_path], env=env, check=True)
+    except ExecutableNotFoundError as e:
+        typer.secho(f"Launch failed: {e}", fg=typer.colors.RED)
+        typer.secho("Please install Claude Code CLI and ensure it's in your PATH.", fg=typer.colors.YELLOW)
+        raise typer.Exit(1)
+    except ValueError as e:
+        typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(1)
     except subprocess.CalledProcessError as e:
         typer.secho(f"Failed to launch Claude Code. Exit code: {e.returncode}", fg=typer.colors.RED)
         raise typer.Exit(1)
