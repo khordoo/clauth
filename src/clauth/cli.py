@@ -1,6 +1,7 @@
 import typer
 import subprocess
 import os
+import shutil
 import clauth.aws_utils as aws
 from clauth.config import get_config_manager, ClauthConfig
 from InquirerPy import inquirer
@@ -266,15 +267,26 @@ def clear_screen():
     os.system('cls' if os.name=='nt' else 'clear')
 
 
-def get_app_path(exe_name:str='claude'):
-    try:
-        result = subprocess.run(
-            ["where", exe_name], capture_output=True, text=True, check=True
-        )
-        claude_path = result.stdout.splitlines()[1]  # TODO: we sleected .cmd
-        return claude_path
-    except subprocess.CalledProcessError as e:
-         exit(f'Setup Fialed. {exe_name} not found on the system.')
+def get_app_path(exe_name: str = 'claude') -> str:
+    """Find the full path to an executable in a cross-platform way.
+
+    Args:
+        exe_name: Name of the executable to find
+
+    Returns:
+        Full path to the executable
+
+    Raises:
+        SystemExit: If executable is not found
+    """
+    if not exe_name or not exe_name.strip():
+        exit(f'Setup failed. Invalid executable name provided.')
+
+    claude_path = shutil.which(exe_name)
+    if claude_path is None:
+        exit(f'Setup failed. {exe_name} not found on the system. Please ensure it is installed and in your PATH.')
+
+    return claude_path
 
 
 
