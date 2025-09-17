@@ -107,51 +107,115 @@ def init(
         subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
         typer.secho(f"SSO login successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
 
-        typer.secho("Step 2/3 — Discovering available inference profiles (models)...", fg=typer.colors.BLUE)
+        typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
 
-        model_ids, model_arns = aws.list_bedrock_profiles(
-            profile=config.aws.profile,
-            region=config.aws.region,
-            provider=config.models.provider_filter
-        )
+        # Check if we have existing model configuration
+        if config.models.default_model_arn and config.models.fast_model_arn:
+            typer.echo(f"Found existing model configuration:")
+            typer.echo(f"  Default model: {config.models.default_model}")
+            typer.echo(f"  Small/Fast model: {config.models.fast_model}")
 
-        # Get custom style from config manager
-        custom_style = get_style(config_manager.get_custom_style())
+            # Get custom style from config manager
+            custom_style = get_style(config_manager.get_custom_style())
 
-        model_id_default = inquirer.select(
-            message="Select your [default] model:",
-            instruction="↑↓ move • Enter select",
-            pointer="❯",
-            amark="✔",
-            choices=model_ids,
-            default=model_ids[0] if model_ids else None,
-            style=custom_style,
-            max_height="100%"
-        ).execute()
+            use_existing = inquirer.confirm(
+                message="Use existing model configuration?",
+                default=True,
+                style=custom_style
+            ).execute()
 
-        model_id_fast = inquirer.select(
-            message="Select your [small/fast] model (you can choose the same as default):",
-            instruction="↑↓ move • Enter select",
-            pointer="❯",
-            amark="✔",
-            choices=model_ids,
-            default=model_ids[-1] if model_ids else None,
-            style=custom_style,
-            max_height="100%"
-        ).execute()
+            if use_existing:
+                model_id_default = config.models.default_model
+                model_id_fast = config.models.fast_model
+                model_map = {
+                    model_id_default: config.models.default_model_arn,
+                    model_id_fast: config.models.fast_model_arn
+                }
+                typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
+            else:
+                # Re-discover and select models
+                model_ids, model_arns = aws.list_bedrock_profiles(
+                    profile=config.aws.profile,
+                    region=config.aws.region,
+                    provider=config.models.provider_filter
+                )
+
+                model_id_default = inquirer.select(
+                    message="Select your [default] model:",
+                    instruction="↑↓ move • Enter select",
+                    pointer="❯",
+                    amark="✔",
+                    choices=model_ids,
+                    default=config.models.default_model if config.models.default_model in model_ids else (model_ids[0] if model_ids else None),
+                    style=custom_style,
+                    max_height="100%"
+                ).execute()
+
+                model_id_fast = inquirer.select(
+                    message="Select your [small/fast] model (you can choose the same as default):",
+                    instruction="↑↓ move • Enter select",
+                    pointer="❯",
+                    amark="✔",
+                    choices=model_ids,
+                    default=config.models.fast_model if config.models.fast_model in model_ids else (model_ids[-1] if model_ids else None),
+                    style=custom_style,
+                    max_height="100%"
+                ).execute()
+
+                model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+
+                # Save updated model selections to configuration
+                config_manager.update_model_settings(
+                    default_model=model_id_default,
+                    fast_model=model_id_fast,
+                    default_arn=model_map[model_id_default],
+                    fast_arn=model_map[model_id_fast]
+                )
+        else:
+            # No existing configuration, do full model discovery and selection
+            model_ids, model_arns = aws.list_bedrock_profiles(
+                profile=config.aws.profile,
+                region=config.aws.region,
+                provider=config.models.provider_filter
+            )
+
+            # Get custom style from config manager
+            custom_style = get_style(config_manager.get_custom_style())
+
+            model_id_default = inquirer.select(
+                message="Select your [default] model:",
+                instruction="↑↓ move • Enter select",
+                pointer="❯",
+                amark="✔",
+                choices=model_ids,
+                default=model_ids[0] if model_ids else None,
+                style=custom_style,
+                max_height="100%"
+            ).execute()
+
+            model_id_fast = inquirer.select(
+                message="Select your [small/fast] model (you can choose the same as default):",
+                instruction="↑↓ move • Enter select",
+                pointer="❯",
+                amark="✔",
+                choices=model_ids,
+                default=model_ids[-1] if model_ids else None,
+                style=custom_style,
+                max_height="100%"
+            ).execute()
+
+            model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+
+            # Save model selections to configuration
+            config_manager.update_model_settings(
+                default_model=model_id_default,
+                fast_model=model_id_fast,
+                default_arn=model_map[model_id_default],
+                fast_arn=model_map[model_id_fast]
+            )
 
         typer.echo(f"Default model: {model_id_default}")
         typer.echo(f"Small/Fast model: {model_id_fast}")
-
-        model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
-
-        # Save model selections to configuration
-        config_manager.update_model_settings(
-            default_model=model_id_default,
-            fast_model=model_id_fast,
-            default_arn=model_map[model_id_default],
-            fast_arn=model_map[model_id_fast]
-        )
 
         env.update(
             {
@@ -212,6 +276,57 @@ def get_app_path(exe_name:str='claude'):
     except subprocess.CalledProcessError as e:
          exit(f'Setup Fialed. {exe_name} not found on the system.')
 
+
+
+@app.command()
+def claude(
+    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
+    region: str = typer.Option(None, "--region", "-r", help="AWS region to use")
+):
+    """Launch Claude Code with proper environment variables from saved configuration."""
+    # Load configuration and apply CLI overrides
+    config_manager = get_config_manager()
+    config = config_manager.load()
+
+    if profile is not None:
+        config.aws.profile = profile
+    if region is not None:
+        config.aws.region = region
+
+    # Check if user is authenticated
+    if not aws.user_is_authenticated(profile=config.aws.profile):
+        typer.secho("Authentication required. Logging in with AWS SSO...", fg=typer.colors.YELLOW)
+        try:
+            subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile], check=True)
+            typer.secho(f"Successfully authenticated with profile '{config.aws.profile}'", fg=typer.colors.GREEN)
+        except subprocess.CalledProcessError:
+            typer.secho("Authentication failed. Run 'clauth init' for full setup.", fg=typer.colors.RED)
+            raise typer.Exit(1)
+
+    # Check if model settings are configured
+    if not config.models.default_model_arn or not config.models.fast_model_arn:
+        typer.secho("Model configuration missing. Run 'clauth init' for full setup.", fg=typer.colors.RED)
+        raise typer.Exit(1)
+
+    # Set up environment variables
+    env = os.environ.copy()
+    env.update({
+        "AWS_PROFILE": config.aws.profile,
+        "AWS_REGION": config.aws.region,
+        "CLAUDE_CODE_USE_BEDROCK": "1",
+        "ANTHROPIC_MODEL": config.models.default_model_arn,
+        "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": config.models.fast_model_arn,
+    })
+
+    # Launch Claude Code
+    typer.secho("Launching Claude Code with Bedrock configuration...", fg=typer.colors.BLUE)
+    claude_path = get_app_path(config.cli.claude_cli_name)
+    clear_screen()
+    try:
+        subprocess.run([claude_path], env=env, check=True)
+    except subprocess.CalledProcessError as e:
+        typer.secho(f"Failed to launch Claude Code. Exit code: {e.returncode}", fg=typer.colors.RED)
+        raise typer.Exit(1)
 
 
 @app.command()
