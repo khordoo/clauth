@@ -365,7 +365,7 @@ def config_set(
         config_manager.save(profile)
 
         profile_text = f" (profile: {profile})" if profile else ""
-        typer.secho(f"✅ Set {key} = {value}{profile_text}", fg=typer.colors.GREEN)
+        typer.secho(f"Set {key} = {value}{profile_text}", fg=typer.colors.GREEN)
 
     except Exception as e:
         typer.secho(f"Error: Failed to set configuration: {e}", fg=typer.colors.RED)
@@ -392,7 +392,7 @@ def config_reset(
     config_manager._config = default_config
     config_manager.save(profile)
 
-    typer.secho(f"✅ Configuration reset to defaults{profile_text}", fg=typer.colors.GREEN)
+    typer.secho(f"Configuration reset to defaults{profile_text}", fg=typer.colors.GREEN)
 
 
 @config_app.command("profiles")
