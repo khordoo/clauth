@@ -1,39 +1,93 @@
 import typer
-import click
 import subprocess
 import os
-import boto3
 import clauth.aws_utils as aws
+from InquirerPy import inquirer
+from textwrap import dedent
+from rich.console import Console
+from InquirerPy import get_style
+
+
 
 app = typer.Typer()
 env = os.environ.copy()
+console = Console()
 #TODO: get a list of availbale models from aws cli
 
 default = {
     "profile": "clauth",
+    'cli_name':'claude',
     'session_name':'clauth-session',
-    "sso_start_url ": "https://d-97671967ae.awsapps.com/start/#",
+    "sso_start_url": "https://d-97671967ae.awsapps.com/start/#",
     "sso_region": "ap-southeast-2",
     'output':'json',
+    'supported_model_providers':[["Anthropic"]],
     "model_ids": [None],
     "model_id_to_arn":{}
 }
 
+custom_style = get_style({
+    "questionmark": "bold cyan",
+    "answer": "bold green",
+    "pointer": "bold cyan",
+    "instruction": "dim",
+})
 
-@app.command()
+
+@app.command(
+        help=(
+        "First-time setup for CLAUTH: creates an SSO session, links an AWS profile, "
+        "runs the AWS SSO wizard, logs you in, and optionally launches the Claude CLI."
+    )
+)
 def init(
-    profile: str = default["profile"],
-    sso_region=default["sso_region"],
-    sso_start_url=default["sso_start_url "],
-    session_name= default['session_name']
-):
-    print("""
-    Setting up aws profile. Select the AWS account to be used for Claude Code
-    General Info: 
-        SSO start URL : https://d-97671967ae.awsapps.com/start/#
-        SSO Region: ap-southeast-2
-          
-          """)
+  profile: str = typer.Option(
+        default["profile"],
+        "--profile",
+        "-p",
+        help="AWS profile to create or update (saved under [profile <name>] in ~/.aws/config).",
+        show_default=True,
+        rich_help_panel="AWS Profile",
+    ),
+    session_name: str = typer.Option(
+        default["session_name"],
+        "--session-name",
+        "-s",
+        help="Name of the SSO session to create (saved under [sso-session <name>] in ~/.aws/config).",
+        show_default=True,
+        rich_help_panel="AWS SSO",
+    ),
+    sso_start_url: str = typer.Option(
+        default["sso_start_url"],
+        "--sso-start-url",
+        help="IAM Identity Center (SSO) Start URL (e.g., https://d-…awsapps.com/start/).",
+        show_default=True,
+        rich_help_panel="AWS SSO",
+    ),
+    sso_region: str = typer.Option(
+        default["sso_region"],
+        "--sso-region",
+        help="Region that hosts your IAM Identity Center (SSO) instance.",
+        show_default=True,
+        rich_help_panel="AWS SSO",
+    ),
+    region: str = typer.Option(
+        default["sso_region"],
+        "--region",
+        "-r",
+        help="Default AWS client region for this profile (used for STS/Bedrock calls).",
+        show_default=True,
+        rich_help_panel="AWS Profile",
+    ),
+    auto_start: bool = typer.Option(
+        True,
+        "--auto-start/--no-auto-start",
+        help="Launch the Claude CLI immediately after successful setup.",
+        rich_help_panel="Behavior",
+    ),
+  ):
+    show_welcome_logo(console=console)
+   
     args = {
         "sso_start_url": sso_start_url,
         "sso_region": sso_region,
@@ -43,6 +97,7 @@ def init(
         'sso_session.session_name.name': session_name #.name is dummy and can be anything just to force the creation of session name
     }
     try:
+        typer.secho("Step 1/3 — Configuring AWS SSO profile...",fg=typer.colors.BLUE)
         # Setup the default profile entries for better UX
         for arg, value in args.items():
             # unsert to aovid duplicated
@@ -50,75 +105,125 @@ def init(
                 ["aws", "configure", "set", arg, value, "--profile", profile],
                 check=True,
             )
-        print('Succesfuly set the args')
+       
+        typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
+
 
         subprocess.run(["aws", "configure", "sso", "--profile", profile], check=True)
         subprocess.run(["aws", "sso", "login", "--profile", profile])
-        print(f"Successfuly sso login using profile: {profile}")
-        # model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=default['sso_region'])
-        # default['model_ids']=model_ids
-        # default['model_id_to_arn'] = {id:arn for id,arn in zip(model_ids,model_arns)}
-        print('Avilbale anthroipci modesl:',  default['model_id_to_arn'])
-        
+        typer.secho(f"SSO login successful for profile '{profile}'.", fg=typer.colors.GREEN)
+
+
+        typer.secho("Step 2/3 — Discovering available inference profiles (models)...", fg=typer.colors.BLUE)
+
+        #TODO: add cloud provider later mayber google GCP as well
+        # provider = inquirer.select(
+        # message="Choose provider",
+        # choices=["Anthropic", "Amazon", "Mistral"],
+
+        # pointer="❯",
+        # # style=style,
+    # ).execute()
+        model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=region)
+        model_id_default = inquirer.select(
+            message="Select your [default] model:",
+            instruction="↑↓ move • Enter select",
+            pointer="❯",                  # nice pointer glyph
+            amark="✔",   
+            choices=model_ids,
+            default=model_ids[0],
+                 # selected marker
+            style=custom_style,
+            max_height="100%"
+        ).execute()
+        model_id_fast = inquirer.select(
+            message="Select your [small/fast] model (you can choose the same as default):",
+            instruction="↑↓ move • Enter select",
+            pointer="❯",                  # nice pointer glyph
+            amark="✔",   
+            choices=model_ids,
+            default=model_ids[-1],
+            style=custom_style,
+            max_height="100%"
+        ).execute()
+        typer.echo(f"Default model: {model_id_default}")
+        typer.echo(f"Small/Fast model: {model_id_fast}")
+        model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+        env.update(
+            {
+                "AWS_PROFILE": profile,
+                "AWS_REGION": default["sso_region"],
+                "CLAUDE_CODE_USE_BEDROCK": "1",
+                "ANTHROPIC_MODEL": model_map[model_id_default],
+                "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": model_map[model_id_fast],
+            }
+        )
+        typer.echo(f"""default model: {model_id_default}\n small/fast model: {model_id_fast}\n""")
+        if auto_start:
+            typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
+            typer.secho("Step 3/3 — Launching Claude Code...",fg=typer.colors.BLUE)
+            claude_path = get_app_path(default['cli_name'])
+            clear_screen()
+            subprocess.run([claude_path], env=env, check=True)
+        else:
+            typer.echo("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
+            typer.echo("Run the Claude Code CLI when you’re ready:  [bold]claude[/bold]")
+
+      
+
     except subprocess.CalledProcessError as e:
-        exit(f"Command failed with code {e.returncode}")
-    print("Successfuyl set the profile")
+        typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
+        exit(f"Failed to setup. Error Code: {e.returncode}")
+   
+def show_welcome_logo(console: Console)->None:
+    logo = """┌─────────────── CLAUTH ───────────────┐
+│  Claude + AWS SSO helper for Bedrock │
+└──────────────────────────────────────┘"""
+    console.print(logo, style="bold cyan")
+   
+    console.print(dedent("""
+        [bold]Welcome to CLAUTH[/bold]
+        Let’s set up your environment for Claude Code on Amazon Bedrock.
+
+        Prerequisites:
+          • AWS CLI v2
+          • Claude Code CLI
+
+        Tip: run [bold]clauth init --help[/bold] to view options.
+    """).strip())
 
 
-def get_claude_path():
-    result = subprocess.run(
-        ["where", "claude"], capture_output=True, text=True, check=True
-    )
-    claude_path = result.stdout.splitlines()[1]  #
-    print("Claude path is:", claude_path)
-    return claude_path
+def clear_screen():
+    os.system('cls' if os.name=='nt' else 'clear')
 
 
-def get_aws_account():
+def get_app_path(exe_name:str='claude'):
     try:
         result = subprocess.run(
-            [
-                "aws",
-                "sts",
-                "get-caller-identity",
-                "--profile",
-                default["profile"],
-                "--query",
-                "Account",
-                "--output",
-                "text",
-            ],
-            capture_output=True,
-            text=True,
-            check=True,
+            ["where", exe_name], capture_output=True, text=True, check=True
         )
-        account_id = result.stdout.strip()
-        print("Aws Accoutn ID:", account_id)
-        return account_id
+        claude_path = result.stdout.splitlines()[1]  # TODO: we sleected .cmd
+        return claude_path
     except subprocess.CalledProcessError as e:
-        exit(f"Command failed with code {e}")
+         exit(f'Setup Fialed. {exe_name} not found on the system.')
+
+
 
 @app.command()
-def list_models(profile=default["profile"],region=default['sso_region']):
-    if not aws.user_is_authenticated(profile=default["profile"]):
-        exit('Crendetial is not set please run clauth init to loginto aws and authentcate')
-    model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=default['sso_region'])
-    for model_id in model_ids:
-        print(model_id)
+def list_models(profile=default["profile"],region=default['sso_region'], show_arn=False):
+    if not aws.user_is_authenticated(profile=profile):
+        exit("Credentials are missing or expired. Run `clauth init` to authenticate with AWS.")
+
+    model_ids, model_arns = aws.list_bedrock_profiles(profile=profile,region=region)
+    for model_id, model_arn in zip(model_ids,model_arns):
+        if show_arn:
+            print(model_id , ' --> ', model_arn)
+        else:
+            print(model_id)
 
 
-# @app.command()
-# def demo(
-#     profile: str = typer.Option(default["profile"], help="AWS profile"),
-#     region: str = typer.Option(default["region"], help="AWS region"),
-#     anthropic_model: str = typer.Option(
-#         MODEL_IDS[0],
-#         click.Choice(MODEL_IDS, case_sensitive=False),
-#         help="Pick which Anthropic model to use",
-#         show_choices=True,
-#     ),
-# ):
-#     typer.echo(f"profile={profile}, region={region}, model={anthropic_model}")
+
+
 def validate_model_id(id: str):
     model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=default['sso_region'])
     if id not in model_ids:
@@ -126,40 +231,48 @@ def validate_model_id(id: str):
     return id
 
 
-@app.command()
-def start(
-    profile: str =  typer.Option(default["profile"], '--profile',help='AWS profile name with access to bedrock'),
-    default_model_id =  typer.Option(..., '--model','-m', help='AWS bedrock model ID',callback=validate_model_id)
-):
+# @app.command()
+# def start(
+#     profile: str =  typer.Option(default["profile"], '--profile',help='AWS profile name with access to bedrock'),
+# ):
     
-    #TODO: extract the apac part from the arn so we can specify a defualt model name like sunnet 4 and then 
-    #we only attach the region to the first part ot make it work!
-    if not aws.user_is_authenticated(profile=default["profile"]):
-        exit('Crendetial is not set please run clauth init to loginto aws and authentcate')
+#     #TODO: extract the apac part from the arn so we can specify a defualt model name like sunnet 4 and then 
+#     #we only attach the region to the first part ot make it work!
+#     if not aws.user_is_authenticated(profile=default["profile"]):
+#         exit('Crendetial is not set please run clauth init to loginto aws and authentcate')
     
 
   
-    model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=default['sso_region'])
-    model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
-    if default_model_id not in model_ids:
-        exit(f'The provided model id: {default_model_id} is not valid or supported. To view a list of availbalw modes run : clauth list-models')
-    
-    # aws_account = get_aws_account()
-    # model_arn = f"arn:aws:bedrock:{default['sso_region']}:{aws_account}:inference-profile/{default_model_id}"
-    print("model arn:", model_map[default_model_id])
-    env.update(
-        {
-            "AWS_PROFILE": profile,
-            "AWS_REGION": default["sso_region"],
-            "CLAUDE_CODE_USE_BEDROCK": "1",
-            "ANTHROPIC_MODEL": model_map[default_model_id],
-            "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": model_map[default_model_id],
-        }
-    )
+#     model_ids, model_arns = aws.list_bedrock_profiles(profile=default["profile"],region=default['sso_region'])
+#     model_id_default = inquirer.fuzzy(
+#         message="Select defalt model:'",
+#         choices=model_ids,
+#         # default="he",
+#         max_height="70%"
+#     ).execute()
+#     model_id_fast = inquirer.fuzzy(
+#         message="Select defalt model:'",
+#         choices=model_ids,
+#         default=model_id_default,
+#         max_height="70%"
+#     ).execute()
+#     model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+#     print('default and fast:',model_id_default,model_id_fast)
+#     env.update(
+#         {
+#             "AWS_PROFILE": profile,
+#             "AWS_REGION": default["sso_region"],
+#             "CLAUDE_CODE_USE_BEDROCK": "1",
+#             "ANTHROPIC_MODEL": model_map[model_id_default],
+#             "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": model_map[model_id_fast],
+#         }
+#     )
 
-    claude_path = get_claude_path()
-    subprocess.run([claude_path], env=env, check=True)
+    
+#     claude_path = get_app_path()
+#     subprocess.run([claude_path], env=env, check=True)
 
 
 if __name__ == "__main__":
+
     app()
