@@ -265,7 +265,8 @@ app.add_typer(config_app, name="config")
 
 @config_app.command("show")
 def config_show(
-    profile: str = typer.Option(None, "--profile", help="Show specific profile configuration")
+    profile: str = typer.Option(None, "--profile", help="Show specific profile configuration"),
+    show_path: bool = typer.Option(False, "--path", help="Show configuration file location")
 ):
     """Display current configuration."""
     config_manager = get_config_manager()
@@ -277,6 +278,10 @@ def config_show(
         console.print(f"[bold]Profile:[/bold] {profile}")
     else:
         console.print("[bold]Profile:[/bold] default")
+
+    if show_path:
+        config_file = config_manager._get_config_file(profile)
+        console.print(f"[bold]Config File:[/bold] {config_file}")
 
     console.print(f"\n[bold yellow]AWS Settings:[/bold yellow]")
     console.print(f"  Profile: {config.aws.profile}")
