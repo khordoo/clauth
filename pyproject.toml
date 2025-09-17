@@ -8,6 +8,7 @@ authors = [
 ]
 requires-python = ">=3.10"
 dependencies = [
+    "boto3>=1.40.31",
     "typer>=0.17.4",
 ]
 
