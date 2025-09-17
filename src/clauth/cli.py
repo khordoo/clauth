@@ -27,10 +27,12 @@ default = {
 }
 
 custom_style = get_style({
-    "questionmark": "bold cyan",
-    "answer": "bold green",
-    "pointer": "bold cyan",
+    "questionmark": "bold",
     "instruction": "dim",
+    "answer": "bold",
+    "pointer": "ansiblue",        # was bold cyan
+    "highlighted": "ansiblue",    # current row color
+    "selected": "ansiblue"
 })
 
 
