@@ -6,42 +6,75 @@ from botocore.exceptions import NoCredentialsError, ClientError,BotoCoreError ,T
 
 
 
-def user_is_authenticated(profile:str):
+def user_is_authenticated(profile: str) -> bool:
+    """Check if user is authenticated with AWS using the specified profile."""
     try:
         session = boto3.Session(profile_name=profile)
         sts = session.client("sts")
         ident = sts.get_caller_identity()
         account_id = ident["Account"]
-        print('User account:',account_id)
+        print(f'User account: {account_id}')
         return True
-    except Exception as e:
-        return False
-    except NoCredentialsError or TokenRetrievalError:
+    except (NoCredentialsError, TokenRetrievalError):
         print("No credentials — user probably never logged in.")
         return False
     except ClientError as e:
-        if e.response["Error"]["Code"] in ("UnauthorizedSSOToken", "ExpiredToken", "InvalidClientTokenId"):
-            print("Token expired — please run `aws sso login --profile clauth`.")
+        error_code = e.response["Error"]["Code"]
+        if error_code in ("UnauthorizedSSOToken", "ExpiredToken", "InvalidClientTokenId"):
+            print(f"Token expired — please run `aws sso login --profile {profile}`.")
             return False
         else:
-            print('Error in getting the token')
+            print(f'Error getting token: {e}')
             return False
+    except Exception as e:
+        print(f'Unexpected error during authentication: {e}')
+        return False
 
-def list_bedrock_profiles(profile: str, region: str,provider='anthropic', sort:bool=True):
-    session = boto3.Session(profile_name=profile, region_name=region,)
-    client = session.client("bedrock")
-    #TODO: handle case when no model is avovable
+def list_bedrock_profiles(profile: str, region: str, provider: str = 'anthropic', sort: bool = True) -> tuple[list[str], list[str]]:
+    """
+    List available Bedrock inference profiles for the specified provider.
+
+    Args:
+        profile: AWS profile name to use
+        region: AWS region to query
+        provider: Model provider to filter by (default: 'anthropic')
+        sort: Whether to sort results in reverse order (default: True)
+
+    Returns:
+        Tuple of (model_ids, model_arns) lists
+    """
     try:
+        session = boto3.Session(profile_name=profile, region_name=region)
+        client = session.client("bedrock")
+
         resp = client.list_inference_profiles()
-        model_arns= [p["inferenceProfileArn"] for p in resp.get("inferenceProfileSummaries", [])]
+        inference_summaries = resp.get("inferenceProfileSummaries", [])
+
+        if not inference_summaries:
+            print(f"No inference profiles found in region {region}")
+            return [], []
+
+        model_arns = [p["inferenceProfileArn"] for p in inference_summaries]
+
         if model_arns and sort:
             model_arns.sort(reverse=True)
-        model_arn_by_provider = [arn for arn in model_arns if provider in arn]
-        model_ids = [p.split('/')[-1] for p in model_arn_by_provider]
-        return model_ids,model_arn_by_provider
+
+        # Filter by provider
+        model_arn_by_provider = [arn for arn in model_arns if provider.lower() in arn.lower()]
+
+        if not model_arn_by_provider:
+            print(f"No models found for provider '{provider}' in region {region}")
+            return [], []
+
+        model_ids = [arn.split('/')[-1] for arn in model_arn_by_provider]
+        return model_ids, model_arn_by_provider
+
     except (BotoCoreError, ClientError) as e:
-        print("Error listing inference profiles:", e)
-        return [],[]
+        print(f"Error listing inference profiles: {e}")
+        return [], []
+    except Exception as e:
+        print(f"Unexpected error listing models: {e}")
+        return [], []
     
 if __name__=='__main__':
     p=list_bedrock_profiles(profile='clauth',region='ap-southeast-2')
