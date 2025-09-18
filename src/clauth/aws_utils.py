@@ -33,12 +33,12 @@ def user_is_authenticated(profile: str) -> bool:
         # print(f'User account: {account_id}')
         return True
     except (NoCredentialsError, TokenRetrievalError):
-        print("No credentials — user probably never logged in.")
+        print("No credentials found. Please run 'clauth init' to set up authentication.")
         return False
     except ClientError as e:
         error_code = e.response["Error"]["Code"]
         if error_code in ("UnauthorizedSSOToken", "ExpiredToken", "InvalidClientTokenId"):
-            print(f"Token expired — please run `aws sso login --profile {profile}`.")
+            print(f"Credentials expired or invalid. Please run 'clauth init' to re-authenticate.")
             return False
         else:
             print(f'Error getting token: {e}')

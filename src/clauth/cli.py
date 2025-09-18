@@ -133,19 +133,24 @@ def init(
     }
 
     try:
-        typer.secho("Step 1/3 — Configuring AWS SSO profile...",fg=typer.colors.BLUE)
-        # Setup the default profile entries for better UX
-        for arg, value in args.items():
-            subprocess.run(
-                ["aws", "configure", "set", arg, value, "--profile", config.aws.profile],
-                check=True,
-            )
+        # Check if user is already authenticated - skip credential setup if so
+        if aws.user_is_authenticated(profile=config.aws.profile):
+            typer.secho(f"✅ Already authenticated with AWS profile '{config.aws.profile}'", fg=typer.colors.GREEN)
+            typer.echo("Skipping credential setup...")
+        else:
+            typer.secho("Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE)
+            # Setup the default profile entries for better UX
+            for arg, value in args.items():
+                subprocess.run(
+                    ["aws", "configure", "set", arg, value, "--profile", config.aws.profile],
+                    check=True,
+                )
 
-        typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
+            typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
 
-        subprocess.run(["aws", "configure", "sso", "--profile", config.aws.profile], check=True)
-        subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
-        typer.secho(f"SSO login successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
+            subprocess.run(["aws", "configure", "sso", "--profile", config.aws.profile], check=True)
+            subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
+            typer.secho(f"Authentication successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
 
         typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
 
@@ -379,12 +384,7 @@ def claude(
 
     # Check if user is authenticated
     if not aws.user_is_authenticated(profile=config.aws.profile):
-        typer.secho("Authentication required. Logging in with AWS SSO...", fg=typer.colors.YELLOW)
-        try:
-            subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile], check=True)
-            typer.secho(f"Successfully authenticated with profile '{config.aws.profile}'", fg=typer.colors.GREEN)
-        except subprocess.CalledProcessError:
-            typer.secho("Authentication failed. Run 'clauth init' for full setup.", fg=typer.colors.RED)
+        if not handle_authentication_failure(config.aws.profile):
             raise typer.Exit(1)
 
     # Check if model settings are configured
@@ -447,7 +447,8 @@ def list_models(
         config.aws.region = region
 
     if not aws.user_is_authenticated(profile=config.aws.profile):
-        exit("Credentials are missing or expired. Run `clauth init` to authenticate with AWS.")
+        if not handle_authentication_failure(config.aws.profile):
+            raise typer.Exit(1)
 
     with console.status("[bold blue]Fetching available models...") as status:
         model_ids, model_arns = aws.list_bedrock_profiles(
@@ -497,8 +498,8 @@ def switch_models(
 
     # Check authentication
     if not aws.user_is_authenticated(profile=config.aws.profile):
-        typer.secho("Credentials are missing or expired. Run 'clauth init' to authenticate with AWS.", fg=typer.colors.RED)
-        raise typer.Exit(1)
+        if not handle_authentication_failure(config.aws.profile):
+            raise typer.Exit(1)
 
     # Check if models are configured
     if not config.models.default_model or not config.models.fast_model:
@@ -589,6 +590,54 @@ def sm(
     """Shorthand for switch-models. Interactive model switcher for quick model changes."""
     # Delegate to the main switch_models function
     switch_models(profile, region, default_only, fast_only)
+
+
+def is_sso_profile(profile: str) -> bool:
+    """
+    Check if a given AWS profile is configured for SSO.
+
+    Args:
+        profile: AWS profile name to check
+
+    Returns:
+        bool: True if profile has SSO configuration, False otherwise
+    """
+    try:
+        result = subprocess.run(
+            ["aws", "configure", "get", "sso_start_url", "--profile", profile],
+            capture_output=True, text=True, check=False
+        )
+        return result.returncode == 0 and result.stdout.strip()
+    except Exception:
+        return False
+
+
+def handle_authentication_failure(profile: str) -> bool:
+    """
+    Handle authentication failure with appropriate method based on profile type.
+
+    For SSO profiles, attempts automatic re-authentication.
+    For non-SSO profiles, directs user to run clauth init.
+
+    Args:
+        profile: AWS profile name that failed authentication
+
+    Returns:
+        bool: True if successfully authenticated, False otherwise
+    """
+    if is_sso_profile(profile):
+        typer.secho("SSO token expired. Attempting to re-authenticate...", fg=typer.colors.YELLOW)
+        try:
+            subprocess.run(["aws", "sso", "login", "--profile", profile], check=True)
+            typer.secho(f"Successfully re-authenticated with profile '{profile}'", fg=typer.colors.GREEN)
+            return True
+        except subprocess.CalledProcessError:
+            typer.secho("SSO login failed. Run 'clauth init' for full setup.", fg=typer.colors.RED)
+            return False
+    else:
+        # Non-SSO profile - direct to init
+        typer.secho("Authentication required. Please run 'clauth init' to set up authentication.", fg=typer.colors.RED)
+        return False
 
 
 def validate_model_id(id: str):
