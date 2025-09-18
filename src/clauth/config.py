@@ -1,3 +1,8 @@
+# Copyright (c) 2025 Mahmood Khordoo
+#
+# This software is licensed under the MIT License.
+# See the LICENSE file in the root directory for details.
+
 """Configuration management for CLAUTH."""
 
 import os
@@ -13,7 +18,7 @@ class AWSConfig(BaseModel):
     profile: str = Field(default="clauth", description="AWS profile name")
     region: str = Field(default="ap-southeast-2", description="Default AWS region")
     sso_start_url: str = Field(
-        default="https://d-97671967ae.awsapps.com/start/#",
+        default="https://d-xxxxxxxxxx.awsapps.com/start/",
         description="IAM Identity Center (SSO) start URL"
     )
     sso_region: str = Field(default="ap-southeast-2", description="SSO region")

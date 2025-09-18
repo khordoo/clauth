@@ -1,10 +1,13 @@
 [project]
 name = "clauth"
 version = "0.1.0"
-description = "Add your description here"
+description = "Streamlined AWS Bedrock setup for Claude Code - automated SSO, model discovery, and environment configuration"
+keywords = ["aws", "bedrock", "claude", "ai", "sso", "authentication", "cli", "anthropic", "llm"]
 readme = "README.md"
+long_description_content_type = "text/markdown"
+license = {text = "MIT"}
 authors = [
-    { name = "Mahmood.Khordoo", email = "Mahmood.Khordoo@riotinto.com" }
+    { name = "Mahmood.Khordoo", email = "your.email@example.com" }
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -14,6 +17,26 @@ dependencies = [
     "pydantic>=2.0.0",
     "toml>=0.10.2",
 ]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "Intended Audience :: System Administrators",
+    "Topic :: Software Development :: Libraries :: Python Modules",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Internet :: WWW/HTTP :: Session",
+    "Environment :: Console",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+]
+
+[project.urls]
+Homepage = "https://github.com/USERNAME/clauth"
+Repository = "https://github.com/USERNAME/clauth"
+Documentation = "https://github.com/USERNAME/clauth#readme"
+"Bug Tracker" = "https://github.com/USERNAME/clauth/issues"
 
 [project.optional-dependencies]
 test = [

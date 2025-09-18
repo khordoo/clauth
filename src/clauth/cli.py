@@ -1,3 +1,8 @@
+# Copyright (c) 2025 Mahmood Khordoo
+#
+# This software is licensed under the MIT License.
+# See the LICENSE file in the root directory for details.
+
 import typer
 import subprocess
 import os
