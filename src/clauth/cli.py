@@ -3,6 +3,20 @@
 # This software is licensed under the MIT License.
 # See the LICENSE file in the root directory for details.
 
+"""
+CLAUTH Command Line Interface.
+
+This module provides the main CLI interface for CLAUTH, a tool that streamlines
+AWS Bedrock setup for Claude Code. It handles AWS SSO authentication, model
+discovery, environment configuration, and Claude Code CLI launching.
+
+Main Commands:
+    init: Interactive setup wizard for AWS SSO and model selection
+    list-models: Display available Bedrock inference profiles
+    claude: Launch Claude Code CLI with proper environment
+    config: Configuration management (show, set, reset, profiles)
+"""
+
 import typer
 import subprocess
 import os
@@ -74,6 +88,21 @@ def init(
         rich_help_panel="Behavior",
     ),
   ):
+    """
+    Interactive setup wizard for CLAUTH.
+
+    Configures AWS SSO authentication, discovers available Bedrock models,
+    and optionally launches Claude Code CLI with proper environment variables.
+    This is the main entry point for first-time CLAUTH setup.
+
+    Args:
+        profile: AWS profile name to create/update (default from config)
+        session_name: SSO session name (default from config)
+        sso_start_url: IAM Identity Center start URL (default from config)
+        sso_region: SSO region (default from config)
+        region: Default AWS region for profile (default from config)
+        auto_start: Whether to launch Claude Code after setup (default from config)
+    """
     # Load configuration and apply CLI overrides
     config_manager = get_config_manager()
     config = config_manager.load()
@@ -264,6 +293,12 @@ def init(
         exit(f"Failed to setup. Error Code: {e.returncode}")
    
 def show_welcome_logo(console: Console)->None:
+    """
+    Display the CLAUTH welcome logo.
+
+    Args:
+        console: Rich console instance for styled output
+    """
     logo = """┌─────────────── CLAUTH ───────────────┐
 │  Claude + AWS SSO helper for Bedrock │
 └──────────────────────────────────────┘"""
@@ -282,6 +317,7 @@ def show_welcome_logo(console: Console)->None:
 
 
 def clear_screen():
+    """Clear the terminal screen in a cross-platform manner."""
     os.system('cls' if os.name=='nt' else 'clear')
 
 
@@ -388,6 +424,17 @@ def list_models(
     region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
     show_arn: bool = typer.Option(False, "--show-arn", help="Show model ARNs")
 ):
+    """
+    List available Bedrock inference profiles.
+
+    Discovers and displays all available Bedrock models that can be used
+    with Claude Code. Optionally shows full ARNs for the models.
+
+    Args:
+        profile: AWS profile to use (default from config)
+        region: AWS region to use (default from config)
+        show_arn: Whether to display full model ARNs
+    """
     # Load configuration and apply CLI overrides
     config_manager = get_config_manager()
     config = config_manager.load()
@@ -415,6 +462,18 @@ def list_models(
 
 
 def validate_model_id(id: str):
+    """
+    Validate that a model ID exists in available Bedrock profiles.
+
+    Args:
+        id: Model ID to validate
+
+    Returns:
+        str: The validated model ID
+
+    Raises:
+        typer.Exit: If model ID is not found in available models
+    """
     config = get_config_manager().load()
     model_ids, model_arns = aws.list_bedrock_profiles(
         profile=config.aws.profile,

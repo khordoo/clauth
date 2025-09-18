@@ -3,7 +3,20 @@
 # This software is licensed under the MIT License.
 # See the LICENSE file in the root directory for details.
 
-"""Configuration management for CLAUTH."""
+"""
+Configuration management for CLAUTH.
+
+This module handles persistent configuration storage and management for CLAUTH.
+It provides a configuration system using TOML files with support for multiple
+profiles, environment variable overrides, and platform-appropriate storage locations.
+
+Classes:
+    AwsConfig: AWS-related configuration settings
+    ModelConfig: Model selection and provider configuration
+    CliConfig: CLI behavior and appearance settings
+    ClauthConfig: Main configuration container
+    ConfigManager: Configuration file management and operations
+"""
 
 import os
 import toml

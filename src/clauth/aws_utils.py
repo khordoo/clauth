@@ -3,6 +3,18 @@
 # This software is licensed under the MIT License.
 # See the LICENSE file in the root directory for details.
 
+"""
+AWS utilities for CLAUTH.
+
+This module provides AWS-specific functionality including authentication checking,
+Bedrock model discovery, and AWS service interactions. It handles AWS SSO
+authentication verification and retrieves available Bedrock inference profiles.
+
+Functions:
+    user_is_authenticated: Check if user has valid AWS credentials
+    list_bedrock_profiles: Discover available Bedrock inference profiles
+"""
+
 import boto3 
 from botocore.config import Config
 from botocore.exceptions import NoCredentialsError, ClientError,BotoCoreError ,TokenRetrievalError
