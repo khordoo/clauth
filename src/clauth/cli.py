@@ -43,8 +43,8 @@ console = Console()
 
 @app.command(
         help=(
-        "First-time setup for CLAUTH: creates an SSO session, links an AWS profile, "
-        "runs the AWS SSO wizard, logs you in, and optionally launches the Claude CLI."
+        "First-time setup for CLAUTH: configures AWS authentication (SSO or IAM user), "
+        "discovers models, and optionally launches the Claude CLI."
     )
 )
 def init(
@@ -91,15 +91,15 @@ def init(
     """
     Interactive setup wizard for CLAUTH.
 
-    Configures AWS SSO authentication, discovers available Bedrock models,
+    Configures AWS authentication (SSO or IAM user), discovers available Bedrock models,
     and optionally launches Claude Code CLI with proper environment variables.
     This is the main entry point for first-time CLAUTH setup.
 
     Args:
         profile: AWS profile name to create/update (default from config)
-        session_name: SSO session name (default from config)
-        sso_start_url: IAM Identity Center start URL (default from config)
-        sso_region: SSO region (default from config)
+        session_name: SSO session name (default from config, SSO only)
+        sso_start_url: IAM Identity Center start URL (default from config, SSO only)
+        sso_region: SSO region (default from config, SSO only)
         region: Default AWS region for profile (default from config)
         auto_start: Whether to launch Claude Code after setup (default from config)
     """
@@ -123,15 +123,6 @@ def init(
 
     show_welcome_logo(console=console)
 
-    args = {
-        "sso_start_url": config.aws.sso_start_url,
-        "sso_region": config.aws.sso_region,
-        "region": config.aws.sso_region,
-        'output': config.aws.output_format,
-        'sso_session':'claude-auth',
-        'sso_session.session_name.name': config.aws.session_name
-    }
-
     try:
         # Check if user is already authenticated - skip credential setup if so
         if aws.user_is_authenticated(profile=config.aws.profile):
@@ -139,18 +130,20 @@ def init(
             typer.echo("Skipping credential setup...")
         else:
             typer.secho("Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE)
-            # Setup the default profile entries for better UX
-            for arg, value in args.items():
-                subprocess.run(
-                    ["aws", "configure", "set", arg, value, "--profile", config.aws.profile],
-                    check=True,
-                )
+            typer.echo()
 
-            typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
+            auth_method = choose_auth_method()
+            typer.echo()
 
-            subprocess.run(["aws", "configure", "sso", "--profile", config.aws.profile], check=True)
-            subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
-            typer.secho(f"Authentication successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
+            if auth_method == "skip":
+                typer.secho("⏭️ Skipping authentication setup", fg=typer.colors.YELLOW)
+                typer.echo("Note: You may need to authenticate manually if commands fail")
+            elif auth_method == "iam":
+                if not setup_iam_user_auth(config.aws.profile, config.aws.region):
+                    raise typer.Exit(1)
+            elif auth_method == "sso":
+                if not setup_sso_auth(config):
+                    raise typer.Exit(1)
 
         typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
 
@@ -637,6 +630,104 @@ def handle_authentication_failure(profile: str) -> bool:
     else:
         # Non-SSO profile - direct to init
         typer.secho("Authentication required. Please run 'clauth init' to set up authentication.", fg=typer.colors.RED)
+        return False
+
+
+def choose_auth_method():
+    """
+    Interactive authentication method selection.
+
+    Returns:
+        str: Selected authentication method ('sso', 'iam', or 'skip')
+    """
+    from InquirerPy import inquirer
+    from clauth.config import get_config_manager
+
+    # Get custom style
+    config_manager = get_config_manager()
+    custom_style = get_style(config_manager.get_custom_style())
+
+    return inquirer.select(
+        message="Choose your authentication method:",
+        instruction="↑↓ move • Enter select",
+        choices=[
+            {"name": "🏢 AWS SSO (for teams/organizations)", "value": "sso"},
+            {"name": "🔑 IAM User Access Keys (for solo developers)", "value": "iam"},
+            {"name": "⏭️  Skip (I'm already configured)", "value": "skip"}
+        ],
+        pointer="❯",
+        amark="✔",
+        style=custom_style,
+        max_height="100%"
+    ).execute()
+
+
+def setup_iam_user_auth(profile: str, region: str) -> bool:
+    """
+    Set up IAM user authentication for solo developers.
+
+    Args:
+        profile: AWS profile name to configure
+        region: Default AWS region
+
+    Returns:
+        bool: True if setup successful, False otherwise
+    """
+    typer.secho("Setting up IAM user authentication...", fg=typer.colors.BLUE)
+    typer.echo("You'll need your AWS Access Key ID and Secret Access Key.")
+    typer.echo("Get these from: AWS Console → IAM → Users → [Your User] → Security credentials")
+    typer.echo()
+
+    try:
+        # Run aws configure for the specific profile
+        subprocess.run(["aws", "configure", "--profile", profile], check=True)
+
+        # Set the region
+        subprocess.run(["aws", "configure", "set", "region", region, "--profile", profile], check=True)
+
+        typer.secho(f"✅ IAM user authentication configured for profile '{profile}'", fg=typer.colors.GREEN)
+        return True
+    except subprocess.CalledProcessError:
+        typer.secho("❌ Failed to configure IAM user authentication", fg=typer.colors.RED)
+        return False
+
+
+def setup_sso_auth(config) -> bool:
+    """
+    Set up AWS SSO authentication for enterprise users.
+
+    Args:
+        config: Configuration object with SSO settings
+
+    Returns:
+        bool: True if setup successful, False otherwise
+    """
+    args = {
+        "sso_start_url": config.aws.sso_start_url,
+        "sso_region": config.aws.sso_region,
+        "region": config.aws.sso_region,
+        'output': config.aws.output_format,
+        'sso_session':'claude-auth',
+        'sso_session.session_name.name': config.aws.session_name
+    }
+
+    try:
+        typer.secho("Configuring AWS SSO profile...", fg=typer.colors.BLUE)
+        # Setup the default profile entries for better UX
+        for arg, value in args.items():
+            subprocess.run(
+                ["aws", "configure", "set", arg, value, "--profile", config.aws.profile],
+                check=True,
+            )
+
+        typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
+
+        subprocess.run(["aws", "configure", "sso", "--profile", config.aws.profile], check=True)
+        subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
+        typer.secho(f"Authentication successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
+        return True
+    except subprocess.CalledProcessError:
+        typer.secho("❌ SSO setup failed", fg=typer.colors.RED)
         return False
 
 
