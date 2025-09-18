@@ -30,9 +30,9 @@ class AWSConfig(BaseModel):
 
     profile: str = Field(default="clauth", description="AWS profile name")
     region: str = Field(default="ap-southeast-2", description="Default AWS region")
-    sso_start_url: str = Field(
-        default="https://d-xxxxxxxxxx.awsapps.com/start/",
-        description="IAM Identity Center (SSO) start URL"
+    sso_start_url: Optional[str] = Field(
+        default=None,
+        description="IAM Identity Center (SSO) start URL (e.g., https://d-xxxxxxxxxx.awsapps.com/start/)"
     )
     sso_region: str = Field(default="ap-southeast-2", description="SSO region")
     session_name: str = Field(default="clauth-session", description="SSO session name")
@@ -40,7 +40,7 @@ class AWSConfig(BaseModel):
 
     @validator('sso_start_url')
     def validate_sso_url(cls, v):
-        if not v.startswith('https://'):
+        if v is not None and not v.startswith('https://'):
             raise ValueError('SSO start URL must be HTTPS')
         return v
 
@@ -122,6 +122,9 @@ class ConfigManager:
             self._config = ClauthConfig()
             self.save()
 
+        # Migrate legacy placeholder URLs
+        self._migrate_placeholder_urls()
+
         # Apply environment variable overrides
         self._apply_env_overrides()
 
@@ -174,6 +177,19 @@ class ConfigManager:
             self._config.models.default_model = env_default_model
         if env_fast_model := os.environ.get('CLAUTH_FAST_MODEL'):
             self._config.models.fast_model = env_fast_model
+
+    def _migrate_placeholder_urls(self) -> None:
+        """Migrate legacy placeholder SSO URLs to None."""
+        if self._config is None:
+            return
+
+        # Check if sso_start_url contains the old placeholder
+        if (self._config.aws.sso_start_url and
+            self._config.aws.sso_start_url == "https://d-xxxxxxxxxx.awsapps.com/start/"):
+            print("Warning: Migrating placeholder SSO start URL to None. You'll need to provide a real URL during init.")
+            self._config.aws.sso_start_url = None
+            # Save the migrated config
+            self.save()
 
     @property
     def config(self) -> ClauthConfig:
