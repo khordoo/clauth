@@ -174,11 +174,12 @@ def init(
                 typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
             else:
                 # Re-discover and select models
-                model_ids, model_arns = aws.list_bedrock_profiles(
-                    profile=config.aws.profile,
-                    region=config.aws.region,
-                    provider=config.models.provider_filter
-                )
+                with console.status("[bold blue]Discovering available models...") as status:
+                    model_ids, model_arns = aws.list_bedrock_profiles(
+                        profile=config.aws.profile,
+                        region=config.aws.region,
+                        provider=config.models.provider_filter
+                    )
 
                 model_id_default = inquirer.select(
                     message="Select your [default] model:",
@@ -213,11 +214,12 @@ def init(
                 )
         else:
             # No existing configuration, do full model discovery and selection
-            model_ids, model_arns = aws.list_bedrock_profiles(
-                profile=config.aws.profile,
-                region=config.aws.region,
-                provider=config.models.provider_filter
-            )
+            with console.status("[bold blue]Discovering available models...") as status:
+                model_ids, model_arns = aws.list_bedrock_profiles(
+                    profile=config.aws.profile,
+                    region=config.aws.region,
+                    provider=config.models.provider_filter
+                )
 
             # Get custom style from config manager
             custom_style = get_style(config_manager.get_custom_style())
@@ -447,11 +449,12 @@ def list_models(
     if not aws.user_is_authenticated(profile=config.aws.profile):
         exit("Credentials are missing or expired. Run `clauth init` to authenticate with AWS.")
 
-    model_ids, model_arns = aws.list_bedrock_profiles(
-        profile=config.aws.profile,
-        region=config.aws.region,
-        provider=config.models.provider_filter
-    )
+    with console.status("[bold blue]Fetching available models...") as status:
+        model_ids, model_arns = aws.list_bedrock_profiles(
+            profile=config.aws.profile,
+            region=config.aws.region,
+            provider=config.models.provider_filter
+        )
     for model_id, model_arn in zip(model_ids,model_arns):
         if show_arn:
             print(model_id , ' --> ', model_arn)
@@ -475,11 +478,12 @@ def validate_model_id(id: str):
         typer.Exit: If model ID is not found in available models
     """
     config = get_config_manager().load()
-    model_ids, model_arns = aws.list_bedrock_profiles(
-        profile=config.aws.profile,
-        region=config.aws.region,
-        provider=config.models.provider_filter
-    )
+    with console.status("[bold blue]Validating model ID...") as status:
+        model_ids, model_arns = aws.list_bedrock_profiles(
+            profile=config.aws.profile,
+            region=config.aws.region,
+            provider=config.models.provider_filter
+        )
     if id not in model_ids:
         raise typer.BadParameter(f'{id} is not valid or supported model. Valid Models: {model_ids}')
     return id
