@@ -579,6 +579,18 @@ def switch_models(
     console.print(f"  Fast: [green]{new_fast_model}[/green]")
 
 
+@app.command(name="sm")
+def sm(
+    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
+    region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
+    default_only: bool = typer.Option(False, "--default-only", help="Only change default model"),
+    fast_only: bool = typer.Option(False, "--fast-only", help="Only change fast model")
+):
+    """Shorthand for switch-models. Interactive model switcher for quick model changes."""
+    # Delegate to the main switch_models function
+    switch_models(profile, region, default_only, fast_only)
+
+
 def validate_model_id(id: str):
     """
     Validate that a model ID exists in available Bedrock profiles.

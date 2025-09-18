@@ -30,7 +30,7 @@ def user_is_authenticated(profile: str) -> bool:
         sts = session.client("sts")
         ident = sts.get_caller_identity()
         account_id = ident["Account"]
-        print(f'User account: {account_id}')
+        # print(f'User account: {account_id}')
         return True
     except (NoCredentialsError, TokenRetrievalError):
         print("No credentials — user probably never logged in.")
