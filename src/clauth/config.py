@@ -215,7 +215,7 @@ class ConfigManager:
         cli_config = self.config.cli
         return {
             "questionmark": "bold",
-            "instruction": "dim",
+            "instruction": "#858585",
             "answer": "bold",
             "pointer": cli_config.selected_color,
             "highlighted": cli_config.highlighted_color,

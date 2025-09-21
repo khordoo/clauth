@@ -27,6 +27,7 @@ from InquirerPy import inquirer
 from textwrap import dedent
 from rich.console import Console
 from InquirerPy import get_style
+from pyfiglet import Figlet
 
 
 class ExecutableNotFoundError(Exception):
@@ -182,7 +183,7 @@ def init(
                 model_id_default = inquirer.select(
                     message="Select your [default] model:",
                     instruction="↑↓ move • Enter select",
-                    pointer="❯",
+                    pointer="> ",
                     amark="✔",
                     choices=model_ids,
                     default=config.models.default_model if config.models.default_model in model_ids else (model_ids[0] if model_ids else None),
@@ -193,7 +194,7 @@ def init(
                 model_id_fast = inquirer.select(
                     message="Select your [small/fast] model (you can choose the same as default):",
                     instruction="↑↓ move • Enter select",
-                    pointer="❯",
+                    pointer="> ",
                     amark="✔",
                     choices=model_ids,
                     default=config.models.fast_model if config.models.fast_model in model_ids else (model_ids[-1] if model_ids else None),
@@ -225,7 +226,7 @@ def init(
             model_id_default = inquirer.select(
                 message="Select your [default] model:",
                 instruction="↑↓ move • Enter select",
-                pointer="❯",
+                pointer="> ",
                 amark="✔",
                 choices=model_ids,
                 default=model_ids[0] if model_ids else None,
@@ -236,7 +237,7 @@ def init(
             model_id_fast = inquirer.select(
                 message="Select your [small/fast] model (you can choose the same as default):",
                 instruction="↑↓ move • Enter select",
-                pointer="❯",
+                pointer="> ",
                 amark="✔",
                 choices=model_ids,
                 default=model_ids[-1] if model_ids else None,
@@ -267,7 +268,7 @@ def init(
             }
         )
 
-        typer.echo(f"""default model: {model_id_default}\n small/fast model: {model_id_fast}\n""")
+        typer.echo(f"default model: {model_id_default}\n small/fast model: {model_id_fast}\n")
 
         if config.cli.auto_start:
             typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
@@ -299,9 +300,8 @@ def show_welcome_logo(console: Console)->None:
     Args:
         console: Rich console instance for styled output
     """
-    logo = """┌─────────────── CLAUTH ───────────────┐
-│  Claude + AWS SSO helper for Bedrock │
-└──────────────────────────────────────┘"""
+    f = Figlet(font='slant')
+    logo = f.renderText('CLAUTH')
     console.print(logo, style="bold cyan")
    
     console.print(dedent("""
@@ -533,7 +533,7 @@ def switch_models(
         new_default_model = inquirer.select(
             message="Select new default model:",
             instruction="↑↓ move • Enter select",
-            pointer="❯",
+            pointer="> ",
             amark="✔",
             choices=model_ids,
             default=config.models.default_model if config.models.default_model in model_ids else (model_ids[0] if model_ids else None),
@@ -546,7 +546,7 @@ def switch_models(
         new_fast_model = inquirer.select(
             message="Select new small/fast model:",
             instruction="↑↓ move • Enter select",
-            pointer="❯",
+            pointer="> ",
             amark="✔",
             choices=model_ids,
             default=config.models.fast_model if config.models.fast_model in model_ids else (model_ids[-1] if model_ids else None),
@@ -655,7 +655,7 @@ def choose_auth_method():
             {"name": "🔑 IAM User Access Keys (for solo developers)", "value": "iam"},
             {"name": "⏭️  Skip (I'm already configured)", "value": "skip"}
         ],
-        pointer="❯",
+        pointer="> ",
         amark="✔",
         style=custom_style,
         max_height="100%"

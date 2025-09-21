@@ -16,6 +16,7 @@ dependencies = [
     "typer>=0.17.4",
     "pydantic>=2.0.0",
     "toml>=0.10.2",
+    "pyfiglet>=1.0.4",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -91,6 +92,7 @@ exclude_lines = [
     "if __name__ == .__main__.:",
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
+
 ]
 
 [dependency-groups]
