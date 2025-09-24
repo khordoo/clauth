@@ -113,6 +113,16 @@ def init(
     config_manager = get_config_manager()
     config = config_manager.load()
 
+    # Track which CLI parameters were provided
+    cli_overrides = {
+        'profile': profile is not None,
+        'session_name': session_name is not None,
+        'sso_start_url': sso_start_url is not None,
+        'sso_region': sso_region is not None,
+        'region': region is not None,
+        'auto_start': auto_start is not None
+    }
+
     # Override config with CLI parameters if provided
     if profile is not None:
         config.aws.profile = profile
@@ -148,7 +158,7 @@ def init(
             if not setup_iam_user_auth(config.aws.profile, config.aws.region):
                 raise typer.Exit(1)
         elif auth_method == "sso":
-            if not setup_sso_auth(config):
+            if not setup_sso_auth(config, cli_overrides):
                 raise typer.Exit(1)
 
         typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
@@ -396,17 +406,18 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
         return False
 
 
-def setup_sso_auth(config) -> bool:
+def setup_sso_auth(config, cli_overrides) -> bool:
     """
     Set up AWS SSO authentication for enterprise users.
 
     Args:
         config: Configuration object with SSO settings
+        cli_overrides: Dict indicating which CLI parameters were provided
 
     Returns:
         bool: True if setup successful, False otherwise
     """
-    # Prompt for SSO start URL if not provided
+    # Prompt for SSO start URL if not provided via CLI
     if config.aws.sso_start_url is None:
         console.print("\n[bold]SSO Start URL Required[/bold]")
         console.print("Please enter your IAM Identity Center (SSO) start URL.")
@@ -430,10 +441,55 @@ def setup_sso_auth(config) -> bool:
 
         console.print(f"[green]✓ SSO start URL saved: {sso_url}[/green]\n")
 
+    # Prompt for regions if not provided via CLI flags
+    if not cli_overrides.get('region'):
+        console.print("\n[bold]AWS Region Selection[/bold]")
+        console.print("Please select your preferred AWS region.")
+        console.print("This will be used for both SSO operations and default AWS services.\n")
+
+        # Common AWS regions
+        common_regions = [
+            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1",
+            "ap-southeast-2", "ap-northeast-1", "ca-central-1"
+        ]
+
+        selected_region = inquirer.select(
+            message="Select your AWS region:",
+            instruction="↑↓ move • Enter select",
+            choices=common_regions,
+            default=config.aws.region if config.aws.region in common_regions else "us-east-1",
+            pointer="> ",
+            amark="✔",
+        ).execute()
+
+        config.aws.region = selected_region
+        config.aws.sso_region = selected_region  # Keep them consistent
+
+        # Save the updated config
+        from .config import get_config_manager
+        config_manager = get_config_manager()
+        config_manager._config = config
+        config_manager.save()
+
+        console.print(f"[green]✓ Region set to: {selected_region}[/green]\n")
+
+    # Ensure regions are consistent - use the same region for both SSO and default AWS region
+    # This avoids the "inconsistent sso_region" error and reduces user prompts
+    if config.aws.region != config.aws.sso_region:
+        typer.echo(f"Note: Using region '{config.aws.region}' for both SSO and default AWS operations.")
+        typer.echo("If you encounter region inconsistency errors, try: clauth reset --complete")
+        # Update SSO region to match the default region
+        config.aws.sso_region = config.aws.region
+        # Save the updated config
+        from .config import get_config_manager
+        config_manager = get_config_manager()
+        config_manager._config = config
+        config_manager.save()
+
     args = {
         "sso_start_url": config.aws.sso_start_url,
         "sso_region": config.aws.sso_region,
-        "region": config.aws.sso_region,
+        # "region": config.aws.region,  # Use default AWS region, not SSO region
         'output': config.aws.output_format,
         'sso_session':'claude-auth',
         'sso_session.session_name.name': config.aws.session_name
