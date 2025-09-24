@@ -22,7 +22,7 @@ import subprocess
 import os
 import clauth.aws_utils as aws
 from clauth.config import get_config_manager, ClauthConfig
-from clauth.commands import claude
+from clauth.commands import claude, list_models
 from clauth.helpers import (
     ExecutableNotFoundError, clear_screen, get_app_path,
     handle_authentication_failure, is_sso_profile
@@ -42,6 +42,7 @@ console = Console()
 
 # Register commands from modules
 app.command()(claude)
+app.command()(list_models)
 
 
 @app.command(
@@ -325,47 +326,7 @@ def show_welcome_logo(console: Console)->None:
 
 
 
-@app.command()
-def list_models(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
-    show_arn: bool = typer.Option(False, "--show-arn", help="Show model ARNs")
-):
-    """
-    List available Bedrock inference profiles.
 
-    Discovers and displays all available Bedrock models that can be used
-    with Claude Code. Optionally shows full ARNs for the models.
-
-    Args:
-        profile: AWS profile to use (default from config)
-        region: AWS region to use (default from config)
-        show_arn: Whether to display full model ARNs
-    """
-    # Load configuration and apply CLI overrides
-    config_manager = get_config_manager()
-    config = config_manager.load()
-
-    if profile is not None:
-        config.aws.profile = profile
-    if region is not None:
-        config.aws.region = region
-
-    if not aws.user_is_authenticated(profile=config.aws.profile):
-        if not handle_authentication_failure(config.aws.profile):
-            raise typer.Exit(1)
-
-    with console.status("[bold blue]Fetching available models...") as status:
-        model_ids, model_arns = aws.list_bedrock_profiles(
-            profile=config.aws.profile,
-            region=config.aws.region,
-            provider=config.models.provider_filter
-        )
-    for model_id, model_arn in zip(model_ids,model_arns):
-        if show_arn:
-            print(model_id , ' --> ', model_arn)
-        else:
-            print(model_id)
 
 
 @app.command(name="switch-models")

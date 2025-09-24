@@ -6,5 +6,6 @@ for better maintainability and modularity.
 """
 
 from .claude import claude
+from .models import list_models
 
-__all__ = ["claude"]
+__all__ = ["claude", "list_models"]
