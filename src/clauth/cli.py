@@ -20,9 +20,13 @@ Main Commands:
 import typer
 import subprocess
 import os
-import shutil
 import clauth.aws_utils as aws
 from clauth.config import get_config_manager, ClauthConfig
+from clauth.commands import claude
+from clauth.helpers import (
+    ExecutableNotFoundError, clear_screen, get_app_path,
+    handle_authentication_failure, is_sso_profile
+)
 from InquirerPy import inquirer
 from textwrap import dedent
 from rich.console import Console
@@ -30,16 +34,14 @@ from InquirerPy import get_style
 from pyfiglet import Figlet
 
 
-class ExecutableNotFoundError(Exception):
-    """Raised when executable cannot be found in system PATH."""
-    pass
-
-
 
 app = typer.Typer()
 env = os.environ.copy()
 console = Console()
 #TODO: get a list of availbale models from aws cli
+
+# Register commands from modules
+app.command()(claude)
 
 
 @app.command(
@@ -316,101 +318,11 @@ def show_welcome_logo(console: Console)->None:
     """).strip())
 
 
-def clear_screen():
-    """Clear the terminal screen in a cross-platform manner."""
-    os.system('cls' if os.name=='nt' else 'clear')
-
-
-def get_app_path(exe_name: str = 'claude') -> str:
-    """Find the full path to an executable in a cross-platform way.
-
-    On Windows, prefers .cmd and .exe versions when multiple variants exist,
-    matching the original behavior that selected the .cmd version specifically.
-
-    Args:
-        exe_name: Name of the executable to find
-
-    Returns:
-        Full path to the executable
-
-    Raises:
-        ExecutableNotFoundError: If executable is not found in PATH
-        ValueError: If executable name is invalid
-    """
-    if not exe_name or not exe_name.strip():
-        raise ValueError(f'Invalid executable name provided: {exe_name!r}')
-
-    # First, try the basic lookup
-    claude_path = shutil.which(exe_name)
-    if claude_path is None:
-        raise ExecutableNotFoundError(f'{exe_name} not found in system PATH. Please ensure it is installed and in your PATH.')
-
-    # On Windows, prefer .cmd/.exe versions if they exist (matches original behavior)
-    if os.name == 'nt':
-        preferred_extensions = ['.cmd', '.exe']
-        for ext in preferred_extensions:
-            if not exe_name.lower().endswith(ext):
-                preferred_path = shutil.which(exe_name + ext)
-                if preferred_path:
-                    typer.echo(f"Found multiple {exe_name} executables, using: {preferred_path}")
-                    return preferred_path
-
-    typer.echo(f"Using executable: {claude_path}")
-    return claude_path
 
 
 
-@app.command()
-def claude(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use")
-):
-    """Launch Claude Code with proper environment variables from saved configuration."""
-    # Load configuration and apply CLI overrides
-    config_manager = get_config_manager()
-    config = config_manager.load()
 
-    if profile is not None:
-        config.aws.profile = profile
-    if region is not None:
-        config.aws.region = region
 
-    # Check if user is authenticated
-    if not aws.user_is_authenticated(profile=config.aws.profile):
-        if not handle_authentication_failure(config.aws.profile):
-            raise typer.Exit(1)
-
-    # Check if model settings are configured
-    if not config.models.default_model_arn or not config.models.fast_model_arn:
-        typer.secho("Model configuration missing. Run 'clauth init' for full setup.", fg=typer.colors.RED)
-        raise typer.Exit(1)
-
-    # Set up environment variables
-    env = os.environ.copy()
-    env.update({
-        "AWS_PROFILE": config.aws.profile,
-        "AWS_REGION": config.aws.region,
-        "CLAUDE_CODE_USE_BEDROCK": "1",
-        "ANTHROPIC_MODEL": config.models.default_model_arn,
-        "ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION": config.models.fast_model_arn,
-    })
-
-    # Launch Claude Code
-    typer.secho("Launching Claude Code with Bedrock configuration...", fg=typer.colors.BLUE)
-    try:
-        claude_path = get_app_path(config.cli.claude_cli_name)
-        clear_screen()
-        subprocess.run([claude_path], env=env, check=True)
-    except ExecutableNotFoundError as e:
-        typer.secho(f"Launch failed: {e}", fg=typer.colors.RED)
-        typer.secho("Please install Claude Code CLI and ensure it's in your PATH.", fg=typer.colors.YELLOW)
-        raise typer.Exit(1)
-    except ValueError as e:
-        typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
-        raise typer.Exit(1)
-    except subprocess.CalledProcessError as e:
-        typer.secho(f"Failed to launch Claude Code. Exit code: {e.returncode}", fg=typer.colors.RED)
-        raise typer.Exit(1)
 
 
 @app.command()
@@ -585,52 +497,7 @@ def sm(
     switch_models(profile, region, default_only, fast_only)
 
 
-def is_sso_profile(profile: str) -> bool:
-    """
-    Check if a given AWS profile is configured for SSO.
 
-    Args:
-        profile: AWS profile name to check
-
-    Returns:
-        bool: True if profile has SSO configuration, False otherwise
-    """
-    try:
-        result = subprocess.run(
-            ["aws", "configure", "get", "sso_start_url", "--profile", profile],
-            capture_output=True, text=True, check=False
-        )
-        return result.returncode == 0 and result.stdout.strip()
-    except Exception:
-        return False
-
-
-def handle_authentication_failure(profile: str) -> bool:
-    """
-    Handle authentication failure with appropriate method based on profile type.
-
-    For SSO profiles, attempts automatic re-authentication.
-    For non-SSO profiles, directs user to run clauth init.
-
-    Args:
-        profile: AWS profile name that failed authentication
-
-    Returns:
-        bool: True if successfully authenticated, False otherwise
-    """
-    if is_sso_profile(profile):
-        typer.secho("SSO token expired. Attempting to re-authenticate...", fg=typer.colors.YELLOW)
-        try:
-            subprocess.run(["aws", "sso", "login", "--profile", profile], check=True)
-            typer.secho(f"Successfully re-authenticated with profile '{profile}'", fg=typer.colors.GREEN)
-            return True
-        except subprocess.CalledProcessError:
-            typer.secho("SSO login failed. Run 'clauth init' for full setup.", fg=typer.colors.RED)
-            return False
-    else:
-        # Non-SSO profile - direct to init
-        typer.secho("Authentication required. Please run 'clauth init' to set up authentication.", fg=typer.colors.RED)
-        return False
 
 
 def choose_auth_method():
