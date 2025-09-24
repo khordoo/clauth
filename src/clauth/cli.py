@@ -551,10 +551,10 @@ def setup_sso_auth(config, cli_overrides) -> bool:
     args = {
         "sso_start_url": config.aws.sso_start_url,
         "sso_region": config.aws.sso_region,
-        # "region": config.aws.region,  # Use default AWS region, not SSO region
-        "output": config.aws.output_format,
-        "sso_session": "claude-auth",
-        "sso_session.session_name.name": config.aws.session_name,
+        "region": config.aws.region,  # Pass default AWS region to avoid extra prompt
+        'output': config.aws.output_format,
+        'sso_session':'claude-auth',
+        'sso_session.session_name.name': config.aws.session_name
     }
 
     try:
