@@ -24,8 +24,11 @@ import clauth.aws_utils as aws
 from clauth.config import get_config_manager, ClauthConfig
 from clauth.commands import claude, list_models, switch_models, sm
 from clauth.helpers import (
-    ExecutableNotFoundError, clear_screen, get_app_path,
-    handle_authentication_failure, is_sso_profile
+    ExecutableNotFoundError,
+    clear_screen,
+    get_app_path,
+    handle_authentication_failure,
+    is_sso_profile,
 )
 from InquirerPy import inquirer
 from textwrap import dedent
@@ -34,11 +37,10 @@ from InquirerPy import get_style
 from pyfiglet import Figlet
 
 
-
 app = typer.Typer()
 env = os.environ.copy()
 console = Console()
-#TODO: get a list of availbale models from aws cli
+# TODO: get a list of availbale models from aws cli
 
 # Register commands from modules
 app.command()(claude)
@@ -48,7 +50,7 @@ app.command(name="sm")(sm)
 
 
 @app.command(
-        help=(
+    help=(
         "First-time setup for CLAUTH: configures AWS authentication (SSO or IAM user), "
         "discovers models, and optionally launches the Claude CLI."
     )
@@ -93,7 +95,7 @@ def init(
         help="Launch the Claude CLI immediately after successful setup.",
         rich_help_panel="Behavior",
     ),
-  ):
+):
     """
     Interactive setup wizard for CLAUTH.
 
@@ -115,12 +117,12 @@ def init(
 
     # Track which CLI parameters were provided
     cli_overrides = {
-        'profile': profile is not None,
-        'session_name': session_name is not None,
-        'sso_start_url': sso_start_url is not None,
-        'sso_region': sso_region is not None,
-        'region': region is not None,
-        'auto_start': auto_start is not None
+        "profile": profile is not None,
+        "session_name": session_name is not None,
+        "sso_start_url": sso_start_url is not None,
+        "sso_region": sso_region is not None,
+        "region": region is not None,
+        "auto_start": auto_start is not None,
     }
 
     # Override config with CLI parameters if provided
@@ -140,7 +142,9 @@ def init(
     show_welcome_logo(console=console)
 
     try:
-        typer.secho("Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE)
+        typer.secho(
+            "Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE
+        )
         typer.echo()
 
         auth_method = choose_auth_method()
@@ -149,10 +153,16 @@ def init(
         if auth_method == "skip":
             # Check if user is already authenticated when skipping
             if aws.user_is_authenticated(profile=config.aws.profile):
-                typer.secho(f"✅ Already authenticated with AWS profile '{config.aws.profile}'", fg=typer.colors.GREEN)
+                typer.secho(
+                    f"✅ Already authenticated with AWS profile '{config.aws.profile}'",
+                    fg=typer.colors.GREEN,
+                )
                 typer.echo("Skipping credential setup...")
             else:
-                typer.secho("❌ No valid authentication found. Please choose an authentication method.", fg=typer.colors.RED)
+                typer.secho(
+                    "❌ No valid authentication found. Please choose an authentication method.",
+                    fg=typer.colors.RED,
+                )
                 raise typer.Exit(1)
         elif auth_method == "iam":
             if not setup_iam_user_auth(config.aws.profile, config.aws.region):
@@ -175,7 +185,7 @@ def init(
             use_existing = inquirer.confirm(
                 message="Use existing model configuration?",
                 default=True,
-                style=custom_style
+                style=custom_style,
             ).execute()
 
             if use_existing:
@@ -183,16 +193,18 @@ def init(
                 model_id_fast = config.models.fast_model
                 model_map = {
                     model_id_default: config.models.default_model_arn,
-                    model_id_fast: config.models.fast_model_arn
+                    model_id_fast: config.models.fast_model_arn,
                 }
                 typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
             else:
                 # Re-discover and select models
-                with console.status("[bold blue]Discovering available models...") as status:
+                with console.status(
+                    "[bold blue]Discovering available models..."
+                ) as status:
                     model_ids, model_arns = aws.list_bedrock_profiles(
                         profile=config.aws.profile,
                         region=config.aws.region,
-                        provider=config.models.provider_filter
+                        provider=config.models.provider_filter,
                     )
 
                 model_id_default = inquirer.select(
@@ -201,9 +213,11 @@ def init(
                     pointer="> ",
                     amark="✔",
                     choices=model_ids,
-                    default=config.models.default_model if config.models.default_model in model_ids else (model_ids[0] if model_ids else None),
+                    default=config.models.default_model
+                    if config.models.default_model in model_ids
+                    else (model_ids[0] if model_ids else None),
                     style=custom_style,
-                    max_height="100%"
+                    max_height="100%",
                 ).execute()
 
                 model_id_fast = inquirer.select(
@@ -212,19 +226,21 @@ def init(
                     pointer="> ",
                     amark="✔",
                     choices=model_ids,
-                    default=config.models.fast_model if config.models.fast_model in model_ids else (model_ids[-1] if model_ids else None),
+                    default=config.models.fast_model
+                    if config.models.fast_model in model_ids
+                    else (model_ids[-1] if model_ids else None),
                     style=custom_style,
-                    max_height="100%"
+                    max_height="100%",
                 ).execute()
 
-                model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+                model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
 
                 # Save updated model selections to configuration
                 config_manager.update_model_settings(
                     default_model=model_id_default,
                     fast_model=model_id_fast,
                     default_arn=model_map[model_id_default],
-                    fast_arn=model_map[model_id_fast]
+                    fast_arn=model_map[model_id_fast],
                 )
         else:
             # No existing configuration, do full model discovery and selection
@@ -232,7 +248,7 @@ def init(
                 model_ids, model_arns = aws.list_bedrock_profiles(
                     profile=config.aws.profile,
                     region=config.aws.region,
-                    provider=config.models.provider_filter
+                    provider=config.models.provider_filter,
                 )
 
             # Get custom style from config manager
@@ -246,7 +262,7 @@ def init(
                 choices=model_ids,
                 default=model_ids[0] if model_ids else None,
                 style=custom_style,
-                max_height="100%"
+                max_height="100%",
             ).execute()
 
             model_id_fast = inquirer.select(
@@ -257,17 +273,17 @@ def init(
                 choices=model_ids,
                 default=model_ids[-1] if model_ids else None,
                 style=custom_style,
-                max_height="100%"
+                max_height="100%",
             ).execute()
 
-            model_map = {id:arn for id,arn in zip(model_ids,model_arns)}
+            model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
 
             # Save model selections to configuration
             config_manager.update_model_settings(
                 default_model=model_id_default,
                 fast_model=model_id_fast,
                 default_arn=model_map[model_id_default],
-                fast_arn=model_map[model_id_fast]
+                fast_arn=model_map[model_id_fast],
             )
 
         typer.echo(f"Default model: {model_id_default}")
@@ -283,18 +299,23 @@ def init(
             }
         )
 
-        typer.echo(f"default model: {model_id_default}\n small/fast model: {model_id_fast}\n")
+        typer.echo(
+            f"default model: {model_id_default}\n small/fast model: {model_id_fast}\n"
+        )
 
         if config.cli.auto_start:
             typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
-            typer.secho("Step 3/3 — Launching Claude Code...",fg=typer.colors.BLUE)
+            typer.secho("Step 3/3 — Launching Claude Code...", fg=typer.colors.BLUE)
             try:
                 claude_path = get_app_path(config.cli.claude_cli_name)
                 clear_screen()
                 subprocess.run([claude_path], env=env, check=True)
             except ExecutableNotFoundError as e:
                 typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
-                typer.secho(f"Please install Claude Code CLI and ensure it's in your PATH.", fg=typer.colors.YELLOW)
+                typer.secho(
+                    f"Please install Claude Code CLI and ensure it's in your PATH.",
+                    fg=typer.colors.YELLOW,
+                )
                 raise typer.Exit(1)
             except ValueError as e:
                 typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
@@ -307,19 +328,21 @@ def init(
     except subprocess.CalledProcessError as e:
         typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
         exit(f"Failed to setup. Error Code: {e.returncode}")
-   
-def show_welcome_logo(console: Console)->None:
+
+
+def show_welcome_logo(console: Console) -> None:
     """
     Display the CLAUTH welcome logo.
 
     Args:
         console: Rich console instance for styled output
     """
-    f = Figlet(font='slant')
-    logo = f.renderText('CLAUTH')
+    f = Figlet(font="slant")
+    logo = f.renderText("CLAUTH")
     console.print(logo, style="bold cyan")
-   
-    console.print(dedent("""
+
+    console.print(
+        dedent("""
         [bold]Welcome to CLAUTH[/bold]
         Let’s set up your environment for Claude Code on Amazon Bedrock.
 
@@ -328,23 +351,8 @@ def show_welcome_logo(console: Console)->None:
           • Claude Code CLI
 
         Tip: run [bold]clauth init --help[/bold] to view options.
-    """).strip())
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-
+    """).strip()
+    )
 
 
 def choose_auth_method():
@@ -367,12 +375,12 @@ def choose_auth_method():
         choices=[
             {"name": "🏢 AWS SSO (for teams/organizations)", "value": "sso"},
             {"name": "🔑 IAM User Access Keys (for solo developers)", "value": "iam"},
-            {"name": "⏭️  Skip (I'm already configured)", "value": "skip"}
+            {"name": "⏭️  Skip (I'm already configured)", "value": "skip"},
         ],
         pointer="> ",
         amark="✔",
         style=custom_style,
-        max_height="100%"
+        max_height="100%",
     ).execute()
 
 
@@ -389,7 +397,9 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
     """
     typer.secho("Setting up IAM user authentication...", fg=typer.colors.BLUE)
     typer.echo("You'll need your AWS Access Key ID and Secret Access Key.")
-    typer.echo("Get these from: AWS Console → IAM → Users → [Your User] → Security credentials")
+    typer.echo(
+        "Get these from: AWS Console → IAM → Users → [Your User] → Security credentials"
+    )
     typer.echo()
 
     try:
@@ -397,12 +407,20 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
         subprocess.run(["aws", "configure", "--profile", profile], check=True)
 
         # Set the region
-        subprocess.run(["aws", "configure", "set", "region", region, "--profile", profile], check=True)
+        subprocess.run(
+            ["aws", "configure", "set", "region", region, "--profile", profile],
+            check=True,
+        )
 
-        typer.secho(f"✅ IAM user authentication configured for profile '{profile}'", fg=typer.colors.GREEN)
+        typer.secho(
+            f"✅ IAM user authentication configured for profile '{profile}'",
+            fg=typer.colors.GREEN,
+        )
         return True
     except subprocess.CalledProcessError:
-        typer.secho("❌ Failed to configure IAM user authentication", fg=typer.colors.RED)
+        typer.secho(
+            "❌ Failed to configure IAM user authentication", fg=typer.colors.RED
+        )
         return False
 
 
@@ -422,19 +440,24 @@ def setup_sso_auth(config, cli_overrides) -> bool:
         console.print("\n[bold]SSO Start URL Required[/bold]")
         console.print("Please enter your IAM Identity Center (SSO) start URL.")
         console.print("This looks like: https://d-xxxxxxxxxx.awsapps.com/start/")
-        console.print("You can find this in your AWS SSO portal or ask your AWS administrator.\n")
+        console.print(
+            "You can find this in your AWS SSO portal or ask your AWS administrator.\n"
+        )
 
         sso_url = typer.prompt("SSO Start URL")
 
         # Basic validation
-        if not sso_url.startswith('https://'):
-            typer.secho("Error: SSO start URL must start with https://", fg=typer.colors.RED)
+        if not sso_url.startswith("https://"):
+            typer.secho(
+                "Error: SSO start URL must start with https://", fg=typer.colors.RED
+            )
             return False
 
         config.aws.sso_start_url = sso_url
 
         # Save the updated config
         from .config import get_config_manager
+
         config_manager = get_config_manager()
         config_manager._config = config
         config_manager.save()
@@ -442,31 +465,65 @@ def setup_sso_auth(config, cli_overrides) -> bool:
         console.print(f"[green]✓ SSO start URL saved: {sso_url}[/green]\n")
 
     # Prompt for regions if not provided via CLI flags
-    if not cli_overrides.get('region'):
+    if not cli_overrides.get("region"):
         console.print("\n[bold]AWS Region Selection[/bold]")
         console.print("Please select your preferred AWS region.")
-        console.print("This will be used for both SSO operations and default AWS services.\n")
+        console.print(
+            "This will be used for both SSO operations and default AWS services.\n"
+        )
 
-        # Common AWS regions
-        common_regions = [
-            "us-east-1", "us-west-2", "eu-west-1", "ap-southeast-1",
-            "ap-southeast-2", "ap-northeast-1", "ca-central-1"
+        # Common AWS regions with "Other" option
+        custom_region_option = "Other (enter custom region)"
+        region_options = [
+            "us-east-1",
+            "us-west-2",
+            "eu-west-1",
+            "ap-southeast-1",
+            "ap-southeast-2",
+            "ap-northeast-1",
+            "ca-central-1",
+            custom_region_option,
         ]
 
-        selected_region = inquirer.select(
+        selected_option = inquirer.select(
             message="Select your AWS region:",
             instruction="↑↓ move • Enter select",
-            choices=common_regions,
-            default=config.aws.region if config.aws.region in common_regions else "us-east-1",
+            choices=region_options,
+            default=config.aws.region
+            if config.aws.region in region_options
+            else "us-east-1",
             pointer="> ",
             amark="✔",
         ).execute()
+
+        if selected_option == custom_region_option:
+            # Prompt for custom region
+            console.print(
+                "\nPlease enter your AWS region (e.g., us-gov-east-1, eu-central-1, me-south-1):"
+            )
+            custom_region = typer.prompt("AWS Region")
+
+            # Basic validation - AWS regions follow a pattern
+            if (
+                not custom_region
+                or not custom_region.replace("-", "").replace("_", "").isalnum()
+            ):
+                typer.secho(
+                    "Error: Invalid region format. Please enter a valid AWS region.",
+                    fg=typer.colors.RED,
+                )
+                return False
+
+            selected_region = custom_region
+        else:
+            selected_region = selected_option
 
         config.aws.region = selected_region
         config.aws.sso_region = selected_region  # Keep them consistent
 
         # Save the updated config
         from .config import get_config_manager
+
         config_manager = get_config_manager()
         config_manager._config = config
         config_manager.save()
@@ -476,12 +533,17 @@ def setup_sso_auth(config, cli_overrides) -> bool:
     # Ensure regions are consistent - use the same region for both SSO and default AWS region
     # This avoids the "inconsistent sso_region" error and reduces user prompts
     if config.aws.region != config.aws.sso_region:
-        typer.echo(f"Note: Using region '{config.aws.region}' for both SSO and default AWS operations.")
-        typer.echo("If you encounter region inconsistency errors, try: clauth reset --complete")
+        typer.echo(
+            f"Note: Using region '{config.aws.region}' for both SSO and default AWS operations."
+        )
+        typer.echo(
+            "If you encounter region inconsistency errors, try: clauth reset --complete"
+        )
         # Update SSO region to match the default region
         config.aws.sso_region = config.aws.region
         # Save the updated config
         from .config import get_config_manager
+
         config_manager = get_config_manager()
         config_manager._config = config
         config_manager.save()
@@ -490,9 +552,9 @@ def setup_sso_auth(config, cli_overrides) -> bool:
         "sso_start_url": config.aws.sso_start_url,
         "sso_region": config.aws.sso_region,
         # "region": config.aws.region,  # Use default AWS region, not SSO region
-        'output': config.aws.output_format,
-        'sso_session':'claude-auth',
-        'sso_session.session_name.name': config.aws.session_name
+        "output": config.aws.output_format,
+        "sso_session": "claude-auth",
+        "sso_session.session_name.name": config.aws.session_name,
     }
 
     try:
@@ -500,15 +562,30 @@ def setup_sso_auth(config, cli_overrides) -> bool:
         # Setup the default profile entries for better UX
         for arg, value in args.items():
             subprocess.run(
-                ["aws", "configure", "set", arg, value, "--profile", config.aws.profile],
+                [
+                    "aws",
+                    "configure",
+                    "set",
+                    arg,
+                    value,
+                    "--profile",
+                    config.aws.profile,
+                ],
                 check=True,
             )
 
-        typer.echo("Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise.")
+        typer.echo(
+            "Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise."
+        )
 
-        subprocess.run(["aws", "configure", "sso", "--profile", config.aws.profile], check=True)
+        subprocess.run(
+            ["aws", "configure", "sso", "--profile", config.aws.profile], check=True
+        )
         subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
-        typer.secho(f"Authentication successful for profile '{config.aws.profile}'.", fg=typer.colors.GREEN)
+        typer.secho(
+            f"Authentication successful for profile '{config.aws.profile}'.",
+            fg=typer.colors.GREEN,
+        )
         return True
     except subprocess.CalledProcessError:
         typer.secho("❌ SSO setup failed", fg=typer.colors.RED)
@@ -533,10 +610,12 @@ def validate_model_id(id: str):
         model_ids, model_arns = aws.list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
-            provider=config.models.provider_filter
+            provider=config.models.provider_filter,
         )
     if id not in model_ids:
-        raise typer.BadParameter(f'{id} is not valid or supported model. Valid Models: {model_ids}')
+        raise typer.BadParameter(
+            f"{id} is not valid or supported model. Valid Models: {model_ids}"
+        )
     return id
 
 
@@ -547,8 +626,12 @@ app.add_typer(config_app, name="config")
 
 @config_app.command("show")
 def config_show(
-    profile: str = typer.Option(None, "--profile", help="Show specific profile configuration"),
-    show_path: bool = typer.Option(False, "--path", help="Show configuration file location")
+    profile: str = typer.Option(
+        None, "--profile", help="Show specific profile configuration"
+    ),
+    show_path: bool = typer.Option(
+        False, "--path", help="Show configuration file location"
+    ),
 ):
     """Display current configuration.
 
@@ -592,18 +675,25 @@ def config_show(
 
 @config_app.command("set")
 def config_set(
-    key: str = typer.Argument(help="Configuration key (e.g., aws.profile, models.provider_filter)"),
+    key: str = typer.Argument(
+        help="Configuration key (e.g., aws.profile, models.provider_filter)"
+    ),
     value: str = typer.Argument(help="Configuration value"),
-    profile: str = typer.Option(None, "--profile", help="Set value for specific profile")
+    profile: str = typer.Option(
+        None, "--profile", help="Set value for specific profile"
+    ),
 ):
     """Set a configuration value."""
     config_manager = get_config_manager()
     config = config_manager.load(profile)
 
     # Parse the key path (e.g., "aws.profile" -> ["aws", "profile"])
-    key_parts = key.split('.')
+    key_parts = key.split(".")
     if len(key_parts) != 2:
-        typer.secho("Error: Key must be in format 'section.setting' (e.g., 'aws.profile')", fg=typer.colors.RED)
+        typer.secho(
+            "Error: Key must be in format 'section.setting' (e.g., 'aws.profile')",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     section, setting = key_parts
@@ -613,24 +703,45 @@ def config_set(
         if section == "aws":
             if hasattr(config.aws, setting):
                 # Convert string values to appropriate types
-                if setting in ["profile", "region", "sso_start_url", "sso_region", "session_name", "output_format"]:
+                if setting in [
+                    "profile",
+                    "region",
+                    "sso_start_url",
+                    "sso_region",
+                    "session_name",
+                    "output_format",
+                ]:
                     setattr(config.aws, setting, value)
                 else:
-                    typer.secho(f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED)
+                    typer.secho(
+                        f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED
+                    )
                     raise typer.Exit(1)
             else:
-                typer.secho(f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED)
+                typer.secho(
+                    f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED
+                )
                 raise typer.Exit(1)
 
         elif section == "models":
             if hasattr(config.models, setting):
-                if setting in ["provider_filter", "default_model", "fast_model", "default_model_arn", "fast_model_arn"]:
+                if setting in [
+                    "provider_filter",
+                    "default_model",
+                    "fast_model",
+                    "default_model_arn",
+                    "fast_model_arn",
+                ]:
                     setattr(config.models, setting, value)
                 else:
-                    typer.secho(f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED)
+                    typer.secho(
+                        f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED
+                    )
                     raise typer.Exit(1)
             else:
-                typer.secho(f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED)
+                typer.secho(
+                    f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED
+                )
                 raise typer.Exit(1)
 
         elif section == "cli":
@@ -639,17 +750,24 @@ def config_set(
                     setattr(config.cli, setting, value)
                 elif setting in ["auto_start", "show_progress", "color_output"]:
                     # Convert to boolean
-                    bool_value = value.lower() in ('true', '1', 'yes', 'on')
+                    bool_value = value.lower() in ("true", "1", "yes", "on")
                     setattr(config.cli, setting, bool_value)
                 else:
-                    typer.secho(f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED)
+                    typer.secho(
+                        f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED
+                    )
                     raise typer.Exit(1)
             else:
-                typer.secho(f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED)
+                typer.secho(
+                    f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED
+                )
                 raise typer.Exit(1)
 
         else:
-            typer.secho(f"Error: Unknown configuration section '{section}'. Valid sections: aws, models, cli", fg=typer.colors.RED)
+            typer.secho(
+                f"Error: Unknown configuration section '{section}'. Valid sections: aws, models, cli",
+                fg=typer.colors.RED,
+            )
             raise typer.Exit(1)
 
         # Save the updated configuration
@@ -666,14 +784,18 @@ def config_set(
 
 @config_app.command("reset")
 def config_reset(
-    profile: str = typer.Option(None, "--profile", help="Reset specific profile configuration"),
-    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt")
+    profile: str = typer.Option(
+        None, "--profile", help="Reset specific profile configuration"
+    ),
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
 ):
     """Reset configuration to defaults."""
     profile_text = f" for profile '{profile}'" if profile else ""
 
     if not confirm:
-        if not typer.confirm(f"Are you sure you want to reset configuration{profile_text}?"):
+        if not typer.confirm(
+            f"Are you sure you want to reset configuration{profile_text}?"
+        ):
             typer.echo("Configuration reset cancelled.")
             raise typer.Exit(0)
 
@@ -715,42 +837,63 @@ def delete_aws_profile(profile_name: str) -> bool:
         # Use AWS CLI to remove the profile
         result = subprocess.run(
             ["aws", "configure", "list-profiles"],
-            capture_output=True, text=True, check=False
+            capture_output=True,
+            text=True,
+            check=False,
         )
 
         if result.returncode != 0:
-            console.print("[yellow]Warning: Could not list AWS profiles. AWS CLI may not be installed.[/yellow]")
+            console.print(
+                "[yellow]Warning: Could not list AWS profiles. AWS CLI may not be installed.[/yellow]"
+            )
             return True
 
-        existing_profiles = result.stdout.strip().split('\n') if result.stdout.strip() else []
+        existing_profiles = (
+            result.stdout.strip().split("\n") if result.stdout.strip() else []
+        )
 
         if profile_name not in existing_profiles:
-            console.print(f"[yellow]AWS profile '{profile_name}' does not exist.[/yellow]")
+            console.print(
+                f"[yellow]AWS profile '{profile_name}' does not exist.[/yellow]"
+            )
             return True
 
         # Remove the profile using AWS CLI
         subprocess.run(
             ["aws", "configure", "set", "region", "", "--profile", profile_name],
-            check=True, capture_output=True
+            check=True,
+            capture_output=True,
         )
 
         # Remove all profile settings
         settings_to_remove = [
-            "region", "output", "aws_access_key_id", "aws_secret_access_key",
-            "sso_start_url", "sso_region", "sso_account_id", "sso_role_name", "sso_session"
+            "region",
+            "output",
+            "aws_access_key_id",
+            "aws_secret_access_key",
+            "sso_start_url",
+            "sso_region",
+            "sso_account_id",
+            "sso_role_name",
+            "sso_session",
         ]
 
         for setting in settings_to_remove:
             subprocess.run(
                 ["aws", "configure", "set", setting, "", "--profile", profile_name],
-                capture_output=True, check=False
+                capture_output=True,
+                check=False,
             )
 
-        console.print(f"[green]SUCCESS: AWS profile '{profile_name}' deleted successfully.[/green]")
+        console.print(
+            f"[green]SUCCESS: AWS profile '{profile_name}' deleted successfully.[/green]"
+        )
         return True
 
     except subprocess.CalledProcessError as e:
-        console.print(f"[red]ERROR: Failed to delete AWS profile '{profile_name}': {e}[/red]")
+        console.print(
+            f"[red]ERROR: Failed to delete AWS profile '{profile_name}': {e}[/red]"
+        )
         return False
     except Exception as e:
         console.print(f"[red]ERROR: Unexpected error deleting AWS profile: {e}[/red]")
@@ -785,10 +928,14 @@ def clear_sso_cache(profile_name: str = None) -> bool:
                 cache_file.unlink()
                 cache_files_deleted += 1
             except Exception as e:
-                console.print(f"[yellow]Warning: Could not delete cache file {cache_file.name}: {e}[/yellow]")
+                console.print(
+                    f"[yellow]Warning: Could not delete cache file {cache_file.name}: {e}[/yellow]"
+                )
 
         if cache_files_deleted > 0:
-            console.print(f"[green]SUCCESS: Cleared {cache_files_deleted} SSO cache files.[/green]")
+            console.print(
+                f"[green]SUCCESS: Cleared {cache_files_deleted} SSO cache files.[/green]"
+            )
         else:
             console.print("[yellow]No SSO cache files found to clear.[/yellow]")
 
@@ -831,28 +978,44 @@ def remove_sso_session(session_name: str) -> bool:
             config_parser.remove_section(sso_section_name)
 
             # Write back to file
-            with open(aws_config_file, 'w') as f:
+            with open(aws_config_file, "w") as f:
                 config_parser.write(f)
 
-            console.print(f"[green]SUCCESS: Removed SSO session '{session_name}' from AWS config.[/green]")
+            console.print(
+                f"[green]SUCCESS: Removed SSO session '{session_name}' from AWS config.[/green]"
+            )
         else:
-            console.print(f"[yellow]SSO session '{session_name}' not found in AWS config.[/yellow]")
+            console.print(
+                f"[yellow]SSO session '{session_name}' not found in AWS config.[/yellow]"
+            )
 
         return True
 
     except Exception as e:
-        console.print(f"[red]ERROR: Failed to remove SSO session '{session_name}': {e}[/red]")
+        console.print(
+            f"[red]ERROR: Failed to remove SSO session '{session_name}': {e}[/red]"
+        )
         return False
 
 
 @app.command()
 def reset(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to reset (default: from config)"),
-    aws_only: bool = typer.Option(False, "--aws-only", help="Only reset AWS profile and SSO tokens"),
-    config_only: bool = typer.Option(False, "--config-only", help="Only reset CLAUTH configuration"),
-    complete: bool = typer.Option(False, "--complete", help="Completely delete CLAUTH config directory (more thorough)"),
+    profile: str = typer.Option(
+        None, "--profile", "-p", help="AWS profile to reset (default: from config)"
+    ),
+    aws_only: bool = typer.Option(
+        False, "--aws-only", help="Only reset AWS profile and SSO tokens"
+    ),
+    config_only: bool = typer.Option(
+        False, "--config-only", help="Only reset CLAUTH configuration"
+    ),
+    complete: bool = typer.Option(
+        False,
+        "--complete",
+        help="Completely delete CLAUTH config directory (more thorough)",
+    ),
     all_reset: bool = typer.Option(True, "--all", help="Reset everything (default)"),
-    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt")
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
 ):
     """
     Comprehensive reset for testing authentication flows.
@@ -862,11 +1025,17 @@ def reset(
     """
     # Validate conflicting options
     if aws_only and config_only:
-        typer.secho("Error: Cannot use both --aws-only and --config-only flags together.", fg=typer.colors.RED)
+        typer.secho(
+            "Error: Cannot use both --aws-only and --config-only flags together.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     if complete and (aws_only or config_only):
-        typer.secho("Error: --complete flag cannot be used with --aws-only or --config-only.", fg=typer.colors.RED)
+        typer.secho(
+            "Error: --complete flag cannot be used with --aws-only or --config-only.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     # Load configuration to get profile name if not specified
@@ -897,7 +1066,9 @@ def reset(
 
     if reset_config:
         if complete_config_deletion:
-            console.print("  - [bold red]ENTIRE CLAUTH configuration directory[/bold red]")
+            console.print(
+                "  - [bold red]ENTIRE CLAUTH configuration directory[/bold red]"
+            )
         else:
             console.print("  - CLAUTH configuration files")
 
@@ -937,11 +1108,16 @@ def reset(
             if complete_config_deletion:
                 # Complete deletion - remove entire config directory
                 import shutil
+
                 if config_manager.config_dir.exists():
                     shutil.rmtree(config_manager.config_dir)
-                    console.print(f"[green]SUCCESS: Completely removed config directory: {config_manager.config_dir}[/green]")
+                    console.print(
+                        f"[green]SUCCESS: Completely removed config directory: {config_manager.config_dir}[/green]"
+                    )
                 else:
-                    console.print("[yellow]Config directory already doesn't exist.[/yellow]")
+                    console.print(
+                        "[yellow]Config directory already doesn't exist.[/yellow]"
+                    )
             else:
                 # Partial reset - reset to defaults and delete profiles
                 default_config = ClauthConfig()
@@ -952,23 +1128,35 @@ def reset(
                 profiles = config_manager.list_profiles()
                 for profile_name in profiles:
                     if config_manager.delete_profile(profile_name):
-                        console.print(f"[green]Deleted profile config: {profile_name}[/green]")
+                        console.print(
+                            f"[green]Deleted profile config: {profile_name}[/green]"
+                        )
                     else:
-                        console.print(f"[yellow]Warning: Could not delete profile config: {profile_name}[/yellow]")
+                        console.print(
+                            f"[yellow]Warning: Could not delete profile config: {profile_name}[/yellow]"
+                        )
 
-                console.print("[green]SUCCESS: CLAUTH configuration reset to defaults.[/green]")
+                console.print(
+                    "[green]SUCCESS: CLAUTH configuration reset to defaults.[/green]"
+                )
         except Exception as e:
-            console.print(f"[red]ERROR: Failed to reset CLAUTH configuration: {e}[/red]")
+            console.print(
+                f"[red]ERROR: Failed to reset CLAUTH configuration: {e}[/red]"
+            )
             success = False
 
     # Final status
     console.print()
     if success:
         console.print("[bold green]SUCCESS: Reset completed successfully![/bold green]")
-        console.print("\nYou can now run [bold]clauth init[/bold] to test the authentication setup process.")
+        console.print(
+            "\nYou can now run [bold]clauth init[/bold] to test the authentication setup process."
+        )
     else:
         console.print("[bold red]WARNING: Reset completed with some errors.[/bold red]")
-        console.print("Check the messages above and try running the command again if needed.")
+        console.print(
+            "Check the messages above and try running the command again if needed."
+        )
         raise typer.Exit(1)
 
 
