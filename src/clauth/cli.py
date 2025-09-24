@@ -130,26 +130,26 @@ def init(
     show_welcome_logo(console=console)
 
     try:
-        # Check if user is already authenticated - skip credential setup if so
-        if aws.user_is_authenticated(profile=config.aws.profile):
-            typer.secho(f"✅ Already authenticated with AWS profile '{config.aws.profile}'", fg=typer.colors.GREEN)
-            typer.echo("Skipping credential setup...")
-        else:
-            typer.secho("Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE)
-            typer.echo()
+        typer.secho("Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE)
+        typer.echo()
 
-            auth_method = choose_auth_method()
-            typer.echo()
+        auth_method = choose_auth_method()
+        typer.echo()
 
-            if auth_method == "skip":
-                typer.secho("⏭️ Skipping authentication setup", fg=typer.colors.YELLOW)
-                typer.echo("Note: You may need to authenticate manually if commands fail")
-            elif auth_method == "iam":
-                if not setup_iam_user_auth(config.aws.profile, config.aws.region):
-                    raise typer.Exit(1)
-            elif auth_method == "sso":
-                if not setup_sso_auth(config):
-                    raise typer.Exit(1)
+        if auth_method == "skip":
+            # Check if user is already authenticated when skipping
+            if aws.user_is_authenticated(profile=config.aws.profile):
+                typer.secho(f"✅ Already authenticated with AWS profile '{config.aws.profile}'", fg=typer.colors.GREEN)
+                typer.echo("Skipping credential setup...")
+            else:
+                typer.secho("❌ No valid authentication found. Please choose an authentication method.", fg=typer.colors.RED)
+                raise typer.Exit(1)
+        elif auth_method == "iam":
+            if not setup_iam_user_auth(config.aws.profile, config.aws.region):
+                raise typer.Exit(1)
+        elif auth_method == "sso":
+            if not setup_sso_auth(config):
+                raise typer.Exit(1)
 
         typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
 
