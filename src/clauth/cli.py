@@ -523,7 +523,7 @@ def setup_sso_auth(config, cli_overrides) -> bool:
                 check=True,
             )
 
-        typer.echo("Opening the AWS SSO wizard. AWS CLI will prompt for SSO details.")
+        typer.echo("Opening the AWS SSO wizard. AWS CLI will prompt for SSO details. To reset the SSO session run `clauth reset --complete`")
 
         subprocess.run(
             ["aws", "configure", "sso", "--profile", config.aws.profile], check=True
