@@ -435,42 +435,11 @@ def setup_sso_auth(config, cli_overrides) -> bool:
     Returns:
         bool: True if setup successful, False otherwise
     """
-    # Prompt for SSO start URL if not provided via CLI
-    if config.aws.sso_start_url is None:
-        console.print("\n[bold]SSO Start URL Required[/bold]")
-        console.print("Please enter your IAM Identity Center (SSO) start URL.")
-        console.print("This looks like: https://d-xxxxxxxxxx.awsapps.com/start/")
-        console.print(
-            "You can find this in your AWS SSO portal or ask your AWS administrator.\n"
-        )
-
-        sso_url = typer.prompt("SSO Start URL")
-
-        # Basic validation
-        if not sso_url.startswith("https://"):
-            typer.secho(
-                "Error: SSO start URL must start with https://", fg=typer.colors.RED
-            )
-            return False
-
-        config.aws.sso_start_url = sso_url
-
-        # Save the updated config
-        from .config import get_config_manager
-
-        config_manager = get_config_manager()
-        config_manager._config = config
-        config_manager.save()
-
-        console.print(f"[green]✓ SSO start URL saved: {sso_url}[/green]\n")
-
     # Prompt for regions if not provided via CLI flags
     if not cli_overrides.get("region"):
         console.print("\n[bold]AWS Region Selection[/bold]")
         console.print("Please select your preferred AWS region.")
-        console.print(
-            "This will be used for both SSO operations and default AWS services.\n"
-        )
+        console.print("This will be used for default AWS services.\n")
 
         # Common AWS regions with "Other" option
         custom_region_option = "Other (enter custom region)"
@@ -519,7 +488,6 @@ def setup_sso_auth(config, cli_overrides) -> bool:
             selected_region = selected_option
 
         config.aws.region = selected_region
-        config.aws.sso_region = selected_region  # Keep them consistent
 
         # Save the updated config
         from .config import get_config_manager
@@ -530,36 +498,17 @@ def setup_sso_auth(config, cli_overrides) -> bool:
 
         console.print(f"[green]✓ Region set to: {selected_region}[/green]\n")
 
-    # Ensure regions are consistent - use the same region for both SSO and default AWS region
-    # This avoids the "inconsistent sso_region" error and reduces user prompts
-    if config.aws.region != config.aws.sso_region:
-        typer.echo(
-            f"Note: Using region '{config.aws.region}' for both SSO and default AWS operations."
-        )
-        typer.echo(
-            "If you encounter region inconsistency errors, try: clauth reset --complete"
-        )
-        # Update SSO region to match the default region
-        config.aws.sso_region = config.aws.region
-        # Save the updated config
-        from .config import get_config_manager
-
-        config_manager = get_config_manager()
-        config_manager._config = config
-        config_manager.save()
-
+    # Set up basic profile configuration before SSO
     args = {
-        "sso_start_url": config.aws.sso_start_url,
-        "sso_region": config.aws.sso_region,
         "region": config.aws.region,  # Pass default AWS region to avoid extra prompt
-        'output': config.aws.output_format,
-        'sso_session':'claude-auth',
-        'sso_session.session_name.name': config.aws.session_name
+        "output": config.aws.output_format,
+        "sso_session": config.aws.session_name,  # Pre-set session name for consistency
+        "sso_region": config.aws.region,
     }
 
     try:
-        typer.secho("Configuring AWS SSO profile...", fg=typer.colors.BLUE)
-        # Setup the default profile entries for better UX
+        typer.secho("Configuring AWS profile...", fg=typer.colors.BLUE)
+        # Setup the basic profile entries
         for arg, value in args.items():
             subprocess.run(
                 [
@@ -574,13 +523,33 @@ def setup_sso_auth(config, cli_overrides) -> bool:
                 check=True,
             )
 
-        typer.echo(
-            "Opening the AWS SSO wizard. You can accept the defaults unless your team specifies otherwise."
-        )
+        typer.echo("Opening the AWS SSO wizard. AWS CLI will prompt for SSO details.")
 
         subprocess.run(
             ["aws", "configure", "sso", "--profile", config.aws.profile], check=True
         )
+        # Check for existing SSO session to reuse sso_start_url, cli complnas if its not availbane in profile but swet in session
+        # aws cli will complain if sso_start_url is not set in session but set in profile): 
+
+        existing_sso_start_url = (
+            get_existing_sso_start_url(config.aws.session_name)
+            or config.aws.sso_start_url
+        )
+        if existing_sso_start_url:
+            typer.echo(
+                f"Reusing existing SSO Start URL from session '{config.aws.session_name}'"
+            )
+            subprocess.run(
+                [
+                    "aws",
+                    "configure",
+                    "set",
+                    "sso_start_url",
+                    existing_sso_start_url,
+                    "--profile",
+                    config.aws.profile,
+                ]
+            )
         subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
         typer.secho(
             f"Authentication successful for profile '{config.aws.profile}'.",
@@ -944,6 +913,37 @@ def clear_sso_cache(profile_name: str = None) -> bool:
     except Exception as e:
         console.print(f"[red]ERROR: Error clearing SSO cache: {e}[/red]")
         return False
+
+
+def get_existing_sso_start_url(session_name: str) -> str | None:
+    """Get the existing SSO start URL from an SSO session.
+
+    Args:
+        session_name: Name of the SSO session to check
+
+    Returns:
+        str | None: The SSO start URL if found, None otherwise
+    """
+    try:
+        from pathlib import Path
+        import configparser
+
+        aws_config_file = Path.home() / ".aws" / "config"
+        if not aws_config_file.exists():
+            return None
+
+        config_parser = configparser.ConfigParser()
+        config_parser.read(aws_config_file)
+
+        session_section = f"sso-session {session_name}"
+        if config_parser.has_section(session_section):
+            return config_parser.get(session_section, "sso_start_url", fallback=None)
+
+        return None
+
+    except Exception:
+        # If we can't read the config, return None
+        return None
 
 
 def remove_sso_session(session_name: str) -> bool:
