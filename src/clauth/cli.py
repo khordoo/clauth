@@ -524,6 +524,7 @@ def setup_sso_auth(config, cli_overrides) -> bool:
             )
 
         typer.echo("Opening the AWS SSO wizard. AWS CLI will prompt for SSO details. To reset the SSO session run `clauth reset --complete`")
+        typer.secho("Tip: The SSO Start URL typically looks like: https://d-...awsapps.com/start/", fg=typer.colors.YELLOW)
 
         subprocess.run(
             ["aws", "configure", "sso", "--profile", config.aws.profile], check=True
