@@ -21,16 +21,13 @@ import typer
 import subprocess
 import os
 import clauth.aws_utils as aws
-from clauth.config import get_config_manager, ClauthConfig
-from clauth.commands import claude, list_models, switch_models, sm, delete
+from clauth.config import get_config_manager
+from clauth.commands import claude, list_models, switch_models, sm, delete, config_app
 from clauth.helpers import (
     ExecutableNotFoundError,
     clear_screen,
     get_app_path,
-    handle_authentication_failure,
-    is_sso_profile,
     prompt_for_region_if_needed,
-    validate_model_id,
     show_welcome_logo,
     choose_auth_method,
 )
@@ -38,16 +35,10 @@ from clauth.helpers import (
 from clauth.aws_utils import (
     setup_sso_auth,
     setup_iam_user_auth,
-    delete_aws_profile,
-    delete_aws_credentials_profile,
-    clear_sso_cache,
-    remove_sso_session,
 )
 from InquirerPy import inquirer
-from textwrap import dedent
 from rich.console import Console
 from InquirerPy import get_style
-from pyfiglet import Figlet
 
 
 app = typer.Typer()
@@ -55,12 +46,8 @@ env = os.environ.copy()
 console = Console()
 
 
-# Configuration management command group
-config_app = typer.Typer(help="Configuration management commands")
-app.add_typer(config_app, name="config")
-# TODO: get a list of availbale models from aws cli
-
 # Register commands from modules
+app.add_typer(config_app, name="config")
 app.command()(claude)
 app.command()(list_models)
 app.command(name="switch-models")(switch_models)
@@ -350,183 +337,6 @@ def init(
     except subprocess.CalledProcessError as e:
         typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
         exit(f"Failed to setup. Error Code: {e.returncode}")
-
-
-
-
-@config_app.command("show")
-def config_show(
-    profile: str = typer.Option(
-        None, "--profile", help="Show specific profile configuration"
-    ),
-    show_path: bool = typer.Option(
-        False, "--path", help="Show configuration file location"
-    ),
-):
-    """Display current configuration.
-
-    Shows all configuration settings including AWS, model, and CLI preferences.
-    Use --path to show the location of the configuration file.
-    Use --profile to show configuration for a specific profile.
-    """
-    config_manager = get_config_manager()
-    config = config_manager.load(profile)
-
-    console.print("\n[bold cyan]CLAUTH Configuration[/bold cyan]")
-
-    if profile:
-        console.print(f"[bold]Profile:[/bold] {profile}")
-    else:
-        console.print("[bold]Profile:[/bold] default")
-
-    if show_path:
-        config_file = config_manager._get_config_file(profile)
-        console.print(f"[bold]Config File:[/bold] {config_file}")
-
-    console.print(f"\n[bold yellow]AWS Settings:[/bold yellow]")
-    console.print(f"  Profile: {config.aws.profile}")
-    console.print(f"  Region: {config.aws.region}")
-    console.print(f"  SSO Start URL: {config.aws.sso_start_url or 'Not configured'}")
-    console.print(f"  SSO Region: {config.aws.sso_region}")
-    console.print(f"  Session Name: {config.aws.session_name}")
-    console.print(f"  Output Format: {config.aws.output_format}")
-
-    console.print(f"\n[bold yellow]Model Settings:[/bold yellow]")
-    console.print(f"  Provider Filter: {config.models.provider_filter}")
-    console.print(f"  Default Model: {config.models.default_model or 'Not set'}")
-    console.print(f"  Fast Model: {config.models.fast_model or 'Not set'}")
-
-    console.print(f"\n[bold yellow]CLI Settings:[/bold yellow]")
-    console.print(f"  Claude CLI Name: {config.cli.claude_cli_name}")
-    console.print(f"  Auto Start: {config.cli.auto_start}")
-    console.print(f"  Show Progress: {config.cli.show_progress}")
-    console.print(f"  Color Output: {config.cli.color_output}")
-
-
-@config_app.command("set")
-def config_set(
-    key: str = typer.Argument(
-        help="Configuration key (e.g., aws.profile, models.provider_filter)"
-    ),
-    value: str = typer.Argument(help="Configuration value"),
-    profile: str = typer.Option(
-        None, "--profile", help="Set value for specific profile"
-    ),
-):
-    """Set a configuration value."""
-    config_manager = get_config_manager()
-    config = config_manager.load(profile)
-
-    # Parse the key path (e.g., "aws.profile" -> ["aws", "profile"])
-    key_parts = key.split(".")
-    if len(key_parts) != 2:
-        typer.secho(
-            "Error: Key must be in format 'section.setting' (e.g., 'aws.profile')",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(1)
-
-    section, setting = key_parts
-
-    # Validate and set the configuration value
-    try:
-        if section == "aws":
-            if hasattr(config.aws, setting):
-                # Convert string values to appropriate types
-                if setting in [
-                    "profile",
-                    "region",
-                    "sso_start_url",
-                    "sso_region",
-                    "session_name",
-                    "output_format",
-                ]:
-                    setattr(config.aws, setting, value)
-                else:
-                    typer.secho(
-                        f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED
-                    )
-                    raise typer.Exit(1)
-            else:
-                typer.secho(
-                    f"Error: Unknown AWS setting '{setting}'", fg=typer.colors.RED
-                )
-                raise typer.Exit(1)
-
-        elif section == "models":
-            if hasattr(config.models, setting):
-                if setting in [
-                    "provider_filter",
-                    "default_model",
-                    "fast_model",
-                    "default_model_arn",
-                    "fast_model_arn",
-                ]:
-                    setattr(config.models, setting, value)
-                else:
-                    typer.secho(
-                        f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED
-                    )
-                    raise typer.Exit(1)
-            else:
-                typer.secho(
-                    f"Error: Unknown model setting '{setting}'", fg=typer.colors.RED
-                )
-                raise typer.Exit(1)
-
-        elif section == "cli":
-            if hasattr(config.cli, setting):
-                if setting == "claude_cli_name":
-                    setattr(config.cli, setting, value)
-                elif setting in ["auto_start", "show_progress", "color_output"]:
-                    # Convert to boolean
-                    bool_value = value.lower() in ("true", "1", "yes", "on")
-                    setattr(config.cli, setting, bool_value)
-                else:
-                    typer.secho(
-                        f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED
-                    )
-                    raise typer.Exit(1)
-            else:
-                typer.secho(
-                    f"Error: Unknown CLI setting '{setting}'", fg=typer.colors.RED
-                )
-                raise typer.Exit(1)
-
-        else:
-            typer.secho(
-                f"Error: Unknown configuration section '{section}'. Valid sections: aws, models, cli",
-                fg=typer.colors.RED,
-            )
-            raise typer.Exit(1)
-
-        # Save the updated configuration
-        config_manager._config = config
-        config_manager.save(profile)
-
-        profile_text = f" (profile: {profile})" if profile else ""
-        typer.secho(f"Set {key} = {value}{profile_text}", fg=typer.colors.GREEN)
-
-    except Exception as e:
-        typer.secho(f"Error: Failed to set configuration: {e}", fg=typer.colors.RED)
-        raise typer.Exit(1)
-
-
-@config_app.command("profiles")
-def config_profiles():
-    """List available configuration profiles."""
-    config_manager = get_config_manager()
-    profiles = config_manager.list_profiles()
-
-    if not profiles:
-        console.print("[yellow]No configuration profiles found.[/yellow]")
-        return
-
-    console.print("\n[bold cyan]Configuration Profiles:[/bold cyan]")
-    for profile in profiles:
-        console.print(f"  • {profile}")
-
-
 
 
 if __name__ == "__main__":
