@@ -481,6 +481,14 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
         except Exception as e:
             console.print(f"[yellow]Warning: Could not clean SSO settings from AWS config: {e}[/yellow]")
 
+        # Verify that the credentials are valid
+        if not aws.user_is_authenticated(profile=profile):
+            typer.secho(
+                "❌ IAM authentication failed. Please check your credentials and try again.",
+                fg=typer.colors.RED,
+            )
+            return False
+
         typer.secho(
             f"✅ IAM user authentication configured for profile '{profile}'",
             fg=typer.colors.GREEN,
