@@ -7,5 +7,6 @@ for better maintainability and modularity.
 
 from .claude import claude
 from .models import list_models, switch_models, sm
+from .delete import delete
 
-__all__ = ["claude", "list_models", "switch_models", "sm"]
+__all__ = ["claude", "list_models", "switch_models", "sm", "delete"]
