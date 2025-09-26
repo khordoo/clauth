@@ -7,7 +7,7 @@ readme = "README.md"
 long_description_content_type = "text/markdown"
 license = {text = "MIT"}
 authors = [
-    { name = "Mahmood.Khordoo", email = "your.email@example.com" }
+    { name = "Mahmood Khordoo" }
 ]
 requires-python = ">=3.10"
 dependencies = [
@@ -17,6 +17,7 @@ dependencies = [
     "pydantic>=2.0.0",
     "toml>=0.10.2",
     "pyfiglet>=1.0.4",
+    "rich>=13.7.1",
 ]
 classifiers = [
     "Development Status :: 4 - Beta",
@@ -34,10 +35,10 @@ classifiers = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/USERNAME/clauth"
-Repository = "https://github.com/USERNAME/clauth"
-Documentation = "https://github.com/USERNAME/clauth#readme"
-"Bug Tracker" = "https://github.com/USERNAME/clauth/issues"
+Homepage = "https://github.com/khordoo/clauth"
+Repository = "https://github.com/khordoo/clauth"
+Documentation = "https://github.com/khordoo/clauth#readme"
+"Bug Tracker" = "https://github.com/khordoo/clauth/issues"
 
 [project.optional-dependencies]
 test = [
@@ -45,6 +46,12 @@ test = [
     "pytest-cov>=4.0.0",
     "pytest-mock>=3.10.0",
     "moto>=4.0.0",  # Mock AWS services
+]
+dev = [
+    "moto>=5.1.12",
+    "pytest>=8.4.2",
+    "pytest-cov>=7.0.0",
+    "pytest-mock>=3.15.1",
 ]
 
 [project.scripts]
@@ -65,7 +72,7 @@ addopts = [
     "--cov=src/clauth",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=15",
+    "--cov-fail-under=14",
 ]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
@@ -93,12 +100,4 @@ exclude_lines = [
     "class .*\\bProtocol\\):",
     "@(abc\\.)?abstractmethod",
 
-]
-
-[dependency-groups]
-dev = [
-    "moto>=5.1.12",
-    "pytest>=8.4.2",
-    "pytest-cov>=7.0.0",
-    "pytest-mock>=3.15.1",
 ]

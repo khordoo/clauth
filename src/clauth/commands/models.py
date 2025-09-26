@@ -1,7 +1,8 @@
 """
 CLAUTH Model Management Commands.
 
-This module provides commands for listing and managing Bedrock models.
+This module provides commands for listing and managing Bedrock models,
+organized under a 'model' subcommand group.
 """
 
 import typer
@@ -13,22 +14,21 @@ from InquirerPy import inquirer, get_style
 
 console = Console()
 
+model_app = typer.Typer(
+    name="model",
+    help="Manage and switch between Bedrock models.",
+    no_args_is_help=True,
+)
 
+
+@model_app.command("list")
 def list_models(
     profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
     region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
     show_arn: bool = typer.Option(False, "--show-arn", help="Show model ARNs")
 ):
     """
-    List available Bedrock inference profiles.
-
-    Discovers and displays all available Bedrock models that can be used
-    with Claude Code. Optionally shows full ARNs for the models.
-
-    Args:
-        profile: AWS profile to use (default from config)
-        region: AWS region to use (default from config)
-        show_arn: Whether to display full model ARNs
+    List available Bedrock models.
     """
     # Load configuration and apply CLI overrides
     config_manager = get_config_manager()
@@ -56,6 +56,7 @@ def list_models(
             print(model_id)
 
 
+@model_app.command("switch")
 def switch_models(
     profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
     region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
@@ -63,16 +64,7 @@ def switch_models(
     fast_only: bool = typer.Option(False, "--fast-only", help="Only change fast model")
 ):
     """
-    Interactive model switcher for quick model changes.
-
-    Shows current models and provides an interactive menu to select new
-    default and fast models without going through full setup.
-
-    Args:
-        profile: AWS profile to use (default from config)
-        region: AWS region to use (default from config)
-        default_only: Only change the default model, keep fast model unchanged
-        fast_only: Only change the fast model, keep default model unchanged
+    Interactively switch the default and fast models.
     """
     # Load configuration and apply CLI overrides
     config_manager = get_config_manager()
@@ -170,14 +162,3 @@ def switch_models(
     console.print("\n[bold green]✅ Models updated successfully![/bold green]")
     console.print(f"  Default: [green]{new_default_model}[/green]")
     console.print(f"  Fast: [green]{new_fast_model}[/green]")
-
-
-def sm(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
-    default_only: bool = typer.Option(False, "--default-only", help="Only change default model"),
-    fast_only: bool = typer.Option(False, "--fast-only", help="Only change fast model")
-):
-    """Shorthand for switch-models. Interactive model switcher for quick model changes."""
-    # Delegate to the main switch_models function
-    switch_models(profile, region, default_only, fast_only)

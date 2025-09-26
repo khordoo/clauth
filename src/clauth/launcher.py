@@ -1,8 +1,8 @@
 """
-CLAUTH Claude Code Launch Command.
+CLAUTH Application Launcher.
 
-This module provides the command to launch Claude Code CLI with proper
-AWS Bedrock environment configuration.
+This module contains the core logic for launching the Claude Code CLI
+with the correct environment configuration.
 """
 
 import os
@@ -13,19 +13,11 @@ from clauth.aws_utils import user_is_authenticated
 from clauth.helpers import handle_authentication_failure, get_app_path, clear_screen, ExecutableNotFoundError
 
 
-def claude(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use")
-):
+def launch_claude_cli():
     """Launch Claude Code with proper environment variables from saved configuration."""
-    # Load configuration and apply CLI overrides
+    # Load configuration
     config_manager = get_config_manager()
     config = config_manager.load()
-
-    if profile is not None:
-        config.aws.profile = profile
-    if region is not None:
-        config.aws.region = region
 
     # Check if user is authenticated
     if not user_is_authenticated(profile=config.aws.profile):

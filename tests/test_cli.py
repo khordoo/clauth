@@ -7,7 +7,7 @@ import tempfile
 import shutil
 from pathlib import Path
 
-from clauth.cli import get_app_path, ExecutableNotFoundError
+from clauth.helpers import get_app_path, ExecutableNotFoundError
 
 
 class TestGetAppPath:
