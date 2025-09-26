@@ -21,9 +21,7 @@ import typer
 import os
 from clauth.commands import (
     claude,
-    list_models,
-    switch_models,
-    sm,
+    model_app,
     delete,
     config_app,
     init,
@@ -54,9 +52,7 @@ console = Console()
 # Register commands from modules
 app.command()(init)
 app.command()(claude)
-app.command()(list_models)
-app.command(name="switch-models", help="Interactive model switcher (alias: sm)")(switch_models)
-app.command(name="sm", hidden=True)(sm)
+app.add_typer(model_app)
 app.add_typer(config_app, name="config")
 app.command()(delete)
 
