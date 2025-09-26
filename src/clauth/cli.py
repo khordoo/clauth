@@ -21,12 +21,12 @@ import typer
 import os
 from typer.core import TyperGroup
 from clauth.commands import (
-    claude,
     model_app,
     delete,
     config_app,
     init,
 )
+from clauth.launcher import launch_claude_cli
 from clauth.helpers import (
     ExecutableNotFoundError,
     clear_screen,
@@ -47,16 +47,23 @@ from InquirerPy import get_style
 
 class OrderedGroup(TyperGroup):
     def list_commands(self, ctx):
-        return ["init", "claude", "model", "config", "delete"]
+        return ["init", "model", "config", "delete"]
 
-app = typer.Typer(cls=OrderedGroup)
+app = typer.Typer(cls=OrderedGroup, no_args_is_help=False, invoke_without_command=True)
 env = os.environ.copy()
 console = Console()
 
 
+@app.callback()
+def main(ctx: typer.Context):
+    """
+    CLAUTH: A streamlined launcher for the Claude Code CLI with AWS Bedrock.
+    """
+    if ctx.invoked_subcommand is None:
+        launch_claude_cli()
+
 # Register commands from modules
 app.command()(init)
-app.command()(claude)
 app.add_typer(model_app, name="model")
 app.add_typer(config_app, name="config")
 app.command()(delete)
