@@ -47,3 +47,5 @@ def config_show(
     console.print(f"  Auto Start: {config.cli.auto_start}")
     console.print(f"  Show Progress: {config.cli.show_progress}")
     console.print(f"  Color Output: {config.cli.color_output}")
+
+    console.print("\n[dim]To remove this configuration and start over, run: [bold]clauth delete[/bold][/dim]")
