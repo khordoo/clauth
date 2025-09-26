@@ -10,11 +10,11 @@ CLAUTH streamlines the complex process of configuring AWS SSO, discovering Bedro
 
 ## Features
 
-- = **Automated AWS SSO Setup** - Creates and configures AWS profiles and SSO sessions
-- > **Model Discovery** - Automatically discovers available Bedrock inference profiles
-- <� **Interactive Model Selection** - Choose default and fast models through user-friendly menus
-- =� **Auto-launch Claude Code** - Seamlessly launches Claude Code CLI with proper configuration
-- =� **Model Management** - List and manage available Bedrock models
+- **Automated AWS SSO Setup** - Creates and configures AWS profiles and SSO sessions
+- **Model Discovery** - Automatically discovers available Bedrock inference profiles
+- **Interactive Model Selection** - Choose default and fast models through user-friendly menus
+- **Auto-launch Claude Code** - Seamlessly launches Claude Code CLI with proper configuration
+- **Model Management** - List and manage available Bedrock models
 
 ## Prerequisites
 
@@ -27,11 +27,17 @@ Before using CLAUTH, ensure you have:
 
 ## Installation
 
+### From PyPI
+
+```bash
+pip install clauth
+```
+
 ### From Source
 
 1. Clone the repository:
    ```bash
-   git clone <repository-url>
+   git clone https://github.com/khordoo/clauth.git
    cd clauth
    ```
 
@@ -89,13 +95,13 @@ clauth init [OPTIONS]
 View all available Bedrock models:
 
 ```bash
-clauth list-models
+clauth model list
 ```
 
 Add `--show-arn` to see full model ARNs:
 
 ```bash
-clauth list-models --show-arn
+clauth model list --show-arn
 ```
 
 ### Quick Model Switching
@@ -104,24 +110,21 @@ Switch between available models without going through the full setup process:
 
 ```bash
 # Interactive model switching
-clauth switch-models
-
-# Or use the shorthand
-clauth sm
+clauth model switch
 ```
 
 **Options:**
 ```bash
-clauth switch-models [OPTIONS]
+clauth model switch [OPTIONS]
 
 # Only change the default model
-clauth sm --default-only
+clauth model switch --default-only
 
 # Only change the fast model
-clauth sm --fast-only
+clauth model switch --fast-only
 
 # Use specific profile/region
-clauth sm --profile myprofile --region us-west-2
+clauth model switch --profile myprofile --region us-west-2
 ```
 
 The command will:
@@ -130,103 +133,41 @@ The command will:
 3. Present an interactive menu to select new models
 4. Update your configuration and confirm the changes
 
-### Reset for Testing
+### Delete Configuration
 
-If you need to test the authentication flows or start fresh, you can reset your configuration:
+To completely remove all `clauth` configurations, including the AWS profile and SSO tokens, use the `delete` command:
 
 ```bash
-# Reset everything (AWS profile, SSO tokens, and CLAUTH config)
-clauth reset
-
-# Reset only AWS profile and SSO tokens
-clauth reset --aws-only
-
-# Reset only CLAUTH configuration
-clauth reset --config-only
-
-# Skip confirmation prompt
-clauth reset --yes
+clauth delete
 ```
 
-**Options:**
-- `--profile` - Specify which AWS profile to reset (default: from config)
-- `--aws-only` - Only reset AWS profile and SSO tokens
-- `--config-only` - Only reset CLAUTH configuration files
-- `--yes, -y` - Skip confirmation prompt
+This command will permanently delete:
+- The `clauth` AWS profile from `~/.aws/config`.
+- The AWS credentials profile (if it exists).
+- The AWS SSO token cache.
+- The SSO session configuration.
+- The entire `clauth` configuration directory.
 
-The reset command will:
-1. Delete the specified AWS profile from `~/.aws/config`
-2. Clear SSO token cache from `~/.aws/sso/cache/`
-3. Reset CLAUTH configuration to defaults
-4. Provide confirmation of what will be deleted before proceeding
-
-**Use Case:** This is particularly useful for developers who want to test the new authentication selection process or switch between different authentication methods.
+To skip the confirmation prompt, use the `--yes` or `-y` flag:
+```bash
+clauth delete --yes
+```
 
 ## Configuration
 
 CLAUTH uses a persistent configuration system that saves your preferences between runs. Configuration is stored in TOML format at `~/.clauth/config.toml` (or `%APPDATA%/clauth/config.toml` on Windows).
 
-### Configuration Management Commands
+### View Current Configuration
 
-#### View Current Configuration
+You can view the current configuration by running:
 
 ```bash
-# Show default configuration
 clauth config show
-
-# Show specific profile configuration
-clauth config show --profile myprofile
 ```
 
-#### Update Configuration Settings
-
+To see the path to the configuration file, use the `--path` flag:
 ```bash
-# Set AWS profile
-clauth config set aws.profile my-bedrock-profile
-
-# Set AWS region
-clauth config set aws.region us-east-1
-
-# Set SSO start URL
-clauth config set aws.sso_start_url https://my-org.awsapps.com/start/
-
-# Set model provider filter
-clauth config set models.provider_filter anthropic
-
-# Set Claude CLI executable name
-clauth config set cli.claude_cli_name claude-dev
-
-# Enable/disable auto-start (accepts: true, false, 1, 0, yes, no)
-clauth config set cli.auto_start false
-```
-
-#### Configuration Profiles
-
-CLAUTH supports multiple configuration profiles for different environments:
-
-```bash
-# List available profiles
-clauth config profiles
-
-# Set configuration for a specific profile
-clauth config set aws.region us-west-2 --profile production
-
-# Use a specific profile for commands
-clauth init --profile production
-clauth list-models --profile staging
-```
-
-#### Reset Configuration
-
-```bash
-# Reset default configuration (with confirmation)
-clauth config reset
-
-# Reset specific profile configuration
-clauth config reset --profile myprofile
-
-# Reset without confirmation prompt
-clauth config reset --yes
+clauth config show --path
 ```
 
 ### Configuration Sections
@@ -282,19 +223,19 @@ After running `clauth init`, these environment variables are set for Claude Code
 - `AWS_REGION` - Selected AWS region
 - `CLAUDE_CODE_USE_BEDROCK=1` - Enables Bedrock integration
 - `ANTHROPIC_MODEL` - Default model ARN
-- `ANTHROPIC_SMALL_FAST_MODEL_AWS_REGION` - Fast model ARN
+- `ANTHROPIC_SMALL_FAST_MODEL` - Fast model ARN
 
 ## Project Structure
 
 ```
 clauth/
-   src/clauth/
-      __init__.py
-      cli.py          # Main CLI interface with Typer
-      aws_utils.py    # AWS/Bedrock integration utilities
-      models.py       # Model selection utilities
-   pyproject.toml      # Project configuration
-   README.md          # This file
+├── src/clauth/
+│   ├── __init__.py
+│   ├── cli.py          # Main CLI interface with Typer
+│   ├── aws_utils.py    # AWS/Bedrock integration utilities
+│   └── models.py       # Model selection utilities
+├── pyproject.toml      # Project configuration
+└── README.md           # This file
 ```
 
 ## Dependencies
@@ -350,8 +291,8 @@ python -m clauth.cli init
 
 ## License
 
-[Add your license information here]
+This project is licensed under the MIT License. See the [LICENSE](LICENSE) file for details.
 
 ## Contributing
 
-[Add contributing guidelines here]
+Contributions are welcome! Please open an issue or submit a pull request for any changes.
