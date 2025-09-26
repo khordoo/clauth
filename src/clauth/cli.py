@@ -511,33 +511,6 @@ def config_set(
         raise typer.Exit(1)
 
 
-@config_app.command("reset")
-def config_reset(
-    profile: str = typer.Option(
-        None, "--profile", help="Reset specific profile configuration"
-    ),
-    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
-):
-    """Reset configuration to defaults."""
-    profile_text = f" for profile '{profile}'" if profile else ""
-
-    if not confirm:
-        if not typer.confirm(
-            f"Are you sure you want to reset configuration{profile_text}?"
-        ):
-            typer.echo("Configuration reset cancelled.")
-            raise typer.Exit(0)
-
-    config_manager = get_config_manager()
-
-    # Create new default configuration
-    default_config = ClauthConfig()
-    config_manager._config = default_config
-    config_manager.save(profile)
-
-    typer.secho(f"Configuration reset to defaults{profile_text}", fg=typer.colors.GREEN)
-
-
 @config_app.command("profiles")
 def config_profiles():
     """List available configuration profiles."""
@@ -556,166 +529,83 @@ def config_profiles():
 
 
 @app.command()
-def reset(
-    profile: str = typer.Option(
-        None, "--profile", "-p", help="AWS profile to reset (default: from config)"
-    ),
-    aws_only: bool = typer.Option(
-        False, "--aws-only", help="Only reset AWS profile and SSO tokens"
-    ),
-    config_only: bool = typer.Option(
-        False, "--config-only", help="Only reset CLAUTH configuration"
-    ),
-    complete: bool = typer.Option(
-        False,
-        "--complete",
-        help="Completely delete CLAUTH config directory (more thorough)",
-    ),
-    all_reset: bool = typer.Option(True, "--all", help="Reset everything (default)"),
+def delete(
     confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
 ):
     """
-    Comprehensive reset for testing authentication flows.
+    Deletes all CLAUTH configurations and associated AWS profile data.
 
-    Clears AWS profiles, SSO tokens, and CLAUTH configuration to allow
-    testing the authentication setup process from scratch.
+    This command provides a complete cleanup by:
+    - Deleting the entire CLAUTH configuration directory.
+    - Removing the associated AWS profile from `~/.aws/config`.
+    - Clearing the AWS SSO token cache.
+    - Removing any related SSO session configurations.
     """
-    # Validate conflicting options
-    if aws_only and config_only:
-        typer.secho(
-            "Error: Cannot use both --aws-only and --config-only flags together.",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(1)
-
-    if complete and (aws_only or config_only):
-        typer.secho(
-            "Error: --complete flag cannot be used with --aws-only or --config-only.",
-            fg=typer.colors.RED,
-        )
-        raise typer.Exit(1)
-
-    # Load configuration to get profile name if not specified
+    # Load configuration to get profile name
     config_manager = get_config_manager()
     config = config_manager.load()
+    profile = config.aws.profile
 
-    if profile is None:
-        profile = config.aws.profile
-
-    # Determine what to reset
-    if complete:
-        reset_aws = True
-        reset_config = True
-        complete_config_deletion = True
-    else:
-        reset_aws = not config_only
-        reset_config = not aws_only
-        complete_config_deletion = False
-
-    # Show what will be reset
-    console.print("\n[bold red]WARNING: RESET OPERATION[/bold red]")
-    console.print("The following will be deleted:")
-
-    if reset_aws:
-        console.print(f"  - AWS profile: [yellow]{profile}[/yellow]")
-        console.print("  - SSO token cache")
-        console.print("  - SSO session configuration")
-
-    if reset_config:
-        if complete_config_deletion:
-            console.print(
-                "  - [bold red]ENTIRE CLAUTH configuration directory[/bold red]"
-            )
-        else:
-            console.print("  - CLAUTH configuration files")
-
+    # Show what will be deleted
+    console.print("\n[bold red]WARNING: DELETE OPERATION[/bold red]")
+    console.print("This will permanently delete the following:")
+    console.print(f"  - AWS profile: [yellow]{profile}[/yellow]")
+    console.print("  - AWS credentials profile (if it exists)")
+    console.print("  - SSO token cache")
+    console.print("  - SSO session configuration")
+    console.print("  - [bold red]ENTIRE CLAUTH configuration directory[/bold red]")
     console.print()
 
     # Confirmation
     if not confirm:
-        if not typer.confirm("Are you sure you want to proceed with the reset?"):
-            console.print("[yellow]Reset operation cancelled.[/yellow]")
+        if not typer.confirm("Are you sure you want to proceed with the deletion?"):
+            console.print("[yellow]Delete operation cancelled.[/yellow]")
             raise typer.Exit(0)
 
     success = True
-    console.print("\n[bold blue]Starting reset operation...[/bold blue]")
+    console.print("\n[bold blue]Starting delete operation...[/bold blue]")
 
-    # Reset AWS profile and SSO cache
-    if reset_aws:
-        console.print(f"\n[bold]Step 1: Resetting AWS profile '{profile}'[/bold]")
-        if not delete_aws_profile(profile):
-            success = False
-        if not delete_aws_credentials_profile(profile):
-            success = False
+    # Step 1: Delete AWS profile and credentials
+    console.print(f"\n[bold]Step 1: Deleting AWS profile '{profile}'[/bold]")
+    if not delete_aws_profile(profile):
+        success = False
+    if not delete_aws_credentials_profile(profile):
+        success = False
 
-        console.print("\n[bold]Step 2: Clearing SSO token cache[/bold]")
-        if not clear_sso_cache(profile):
-            success = False
+    # Step 2: Clear SSO token cache
+    console.print("\n[bold]Step 2: Clearing SSO token cache[/bold]")
+    if not clear_sso_cache(profile):
+        success = False
 
-        console.print("\n[bold]Step 3: Removing SSO session configuration[/bold]")
-        # Remove both hardcoded session name and config session name
-        if not remove_sso_session("claude-auth"):
-            success = False
-        if not remove_sso_session(config.aws.session_name):
-            success = False
+    # Step 3: Remove SSO session configuration
+    console.print("\n[bold]Step 3: Removing SSO session configuration[/bold]")
+    if not remove_sso_session("claude-auth"):
+        success = False
+    if not remove_sso_session(config.aws.session_name):
+        success = False
 
-    # Reset CLAUTH configuration
-    if reset_config:
-        step_num = 4 if reset_aws else 1
-        console.print(f"\n[bold]Step {step_num}: Resetting CLAUTH configuration[/bold]")
-        try:
-            if complete_config_deletion:
-                # Complete deletion - remove entire config directory
-                import shutil
-
-                if config_manager.config_dir.exists():
-                    shutil.rmtree(config_manager.config_dir)
-                    console.print(
-                        f"[green]SUCCESS: Completely removed config directory: {config_manager.config_dir}[/green]"
-                    )
-                else:
-                    console.print(
-                        "[yellow]Config directory already doesn't exist.[/yellow]"
-                    )
-            else:
-                # Partial reset - reset to defaults and delete profiles
-                default_config = ClauthConfig()
-                config_manager._config = default_config
-                config_manager.save()
-
-                # Delete any profile-specific configs
-                profiles = config_manager.list_profiles()
-                for profile_name in profiles:
-                    if config_manager.delete_profile(profile_name):
-                        console.print(
-                            f"[green]Deleted profile config: {profile_name}[/green]"
-                        )
-                    else:
-                        console.print(
-                            f"[yellow]Warning: Could not delete profile config: {profile_name}[/yellow]"
-                        )
-
-                console.print(
-                    "[green]SUCCESS: CLAUTH configuration reset to defaults.[/green]"
-                )
-        except Exception as e:
+    # Step 4: Delete CLAUTH configuration directory
+    console.print(f"\n[bold]Step 4: Deleting CLAUTH configuration[/bold]")
+    try:
+        import shutil
+        if config_manager.config_dir.exists():
+            shutil.rmtree(config_manager.config_dir)
             console.print(
-                f"[red]ERROR: Failed to reset CLAUTH configuration: {e}[/red]"
+                f"[green]SUCCESS: Completely removed config directory: {config_manager.config_dir}[/green]"
             )
-            success = False
+        else:
+            console.print("[yellow]Config directory already doesn't exist.[/yellow]")
+    except Exception as e:
+        console.print(f"[red]ERROR: Failed to delete CLAUTH configuration: {e}[/red]")
+        success = False
 
     # Final status
     console.print()
     if success:
-        console.print("[bold green]SUCCESS: Reset completed successfully![/bold green]")
-        console.print(
-            "\nYou can now run [bold]clauth init[/bold] to test the authentication setup process."
-        )
+        console.print("[bold green]SUCCESS: Deletion completed successfully![/bold green]")
     else:
-        console.print("[bold red]WARNING: Reset completed with some errors.[/bold red]")
-        console.print(
-            "Check the messages above and try running the command again if needed."
-        )
+        console.print("[bold red]WARNING: Deletion completed with some errors.[/bold red]")
+        console.print("Check the messages above for details.")
         raise typer.Exit(1)
 
 
