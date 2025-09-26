@@ -13,16 +13,11 @@ from clauth.aws_utils import user_is_authenticated
 from clauth.helpers import handle_authentication_failure, get_app_path, clear_screen, ExecutableNotFoundError
 
 
-def launch_claude_cli(profile: str = None, region: str = None):
+def launch_claude_cli():
     """Launch Claude Code with proper environment variables from saved configuration."""
-    # Load configuration and apply CLI overrides
+    # Load configuration
     config_manager = get_config_manager()
     config = config_manager.load()
-
-    if profile is not None:
-        config.aws.profile = profile
-    if region is not None:
-        config.aws.region = region
 
     # Check if user is authenticated
     if not user_is_authenticated(profile=config.aws.profile):

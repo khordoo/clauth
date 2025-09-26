@@ -41,16 +41,12 @@ console = Console()
 
 
 @app.callback()
-def main(
-    ctx: typer.Context,
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
-):
+def main(ctx: typer.Context):
     """
     CLAUTH: A streamlined launcher for the Claude Code CLI with AWS Bedrock.
     """
     if ctx.invoked_subcommand is None:
-        launch_claude_cli(profile=profile, region=region)
+        launch_claude_cli()
 
 # Register commands from modules
 app.command()(init)
