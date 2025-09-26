@@ -8,3 +8,10 @@ wheels/
 
 # Virtual environments
 .venv
+.venv-release/
+
+#Agents
+TASKS.md
+CLaude.md
+AGENTS.md
+agents/
