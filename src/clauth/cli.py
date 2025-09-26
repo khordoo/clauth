@@ -19,6 +19,7 @@ Main Commands:
 
 import typer
 import os
+from typer.core import TyperGroup
 from clauth.commands import (
     claude,
     model_app,
@@ -44,7 +45,11 @@ from rich.console import Console
 from InquirerPy import get_style
 
 
-app = typer.Typer()
+class OrderedGroup(TyperGroup):
+    def list_commands(self, ctx):
+        return ["init", "claude", "model", "config", "delete"]
+
+app = typer.Typer(cls=OrderedGroup)
 env = os.environ.copy()
 console = Console()
 
@@ -52,7 +57,7 @@ console = Console()
 # Register commands from modules
 app.command()(init)
 app.command()(claude)
-app.add_typer(model_app)
+app.add_typer(model_app, name="model")
 app.add_typer(config_app, name="config")
 app.command()(delete)
 
