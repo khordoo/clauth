@@ -9,5 +9,6 @@ from .claude import claude
 from .models import list_models, switch_models, sm
 from .delete import delete
 from .config import config_app
+from .init import init
 
-__all__ = ["claude", "list_models", "switch_models", "sm", "delete", "config_app"]
+__all__ = ["claude", "list_models", "switch_models", "sm", "delete", "config_app","init"]
