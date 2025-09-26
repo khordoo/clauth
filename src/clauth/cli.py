@@ -27,22 +27,8 @@ from clauth.commands import (
     init,
 )
 from clauth.launcher import launch_claude_cli
-from clauth.helpers import (
-    ExecutableNotFoundError,
-    clear_screen,
-    get_app_path,
-    prompt_for_region_if_needed,
-    show_welcome_logo,
-    choose_auth_method,
-)
-
-from clauth.aws_utils import (
-    setup_sso_auth,
-    setup_iam_user_auth,
-)
-from InquirerPy import inquirer
 from rich.console import Console
-from InquirerPy import get_style
+
 
 
 class OrderedGroup(TyperGroup):
@@ -55,12 +41,16 @@ console = Console()
 
 
 @app.callback()
-def main(ctx: typer.Context):
+def main(
+    ctx: typer.Context,
+    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
+    region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
+):
     """
     CLAUTH: A streamlined launcher for the Claude Code CLI with AWS Bedrock.
     """
     if ctx.invoked_subcommand is None:
-        launch_claude_cli()
+        launch_claude_cli(profile=profile, region=region)
 
 # Register commands from modules
 app.command()(init)

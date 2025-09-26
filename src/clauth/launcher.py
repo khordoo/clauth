@@ -13,10 +13,7 @@ from clauth.aws_utils import user_is_authenticated
 from clauth.helpers import handle_authentication_failure, get_app_path, clear_screen, ExecutableNotFoundError
 
 
-def launch_claude_cli(
-    profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
-    region: str = typer.Option(None, "--region", "-r", help="AWS region to use")
-):
+def launch_claude_cli(profile: str = None, region: str = None):
     """Launch Claude Code with proper environment variables from saved configuration."""
     # Load configuration and apply CLI overrides
     config_manager = get_config_manager()
