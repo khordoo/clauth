@@ -32,23 +32,25 @@ class AWSConfig(BaseModel):
     region: str = Field(default="ap-southeast-2", description="Default AWS region")
     sso_start_url: Optional[str] = Field(
         default=None,
-        description="IAM Identity Center (SSO) start URL (e.g., https://d-xxxxxxxxxx.awsapps.com/start/)"
+        description="IAM Identity Center (SSO) start URL (e.g., https://d-xxxxxxxxxx.awsapps.com/start/)",
     )
     sso_region: str = Field(default="ap-southeast-2", description="SSO region")
     session_name: str = Field(default="clauth-session", description="SSO session name")
     output_format: str = Field(default="json", description="AWS CLI output format")
 
-    @validator('sso_start_url')
+    @validator("sso_start_url")
     def validate_sso_url(cls, v):
-        if v is not None and not v.startswith('https://'):
-            raise ValueError('SSO start URL must be HTTPS')
+        if v is not None and not v.startswith("https://"):
+            raise ValueError("SSO start URL must be HTTPS")
         return v
 
 
 class ModelConfig(BaseModel):
     """Model-related configuration settings."""
 
-    provider_filter: str = Field(default="anthropic", description="Preferred model provider")
+    provider_filter: str = Field(
+        default="anthropic", description="Preferred model provider"
+    )
     default_model: Optional[str] = Field(None, description="Default model ID")
     fast_model: Optional[str] = Field(None, description="Fast/small model ID")
     default_model_arn: Optional[str] = Field(None, description="Default model ARN")
@@ -58,15 +60,21 @@ class ModelConfig(BaseModel):
 class CLIConfig(BaseModel):
     """CLI behavior and appearance settings."""
 
-    claude_cli_name: str = Field(default="claude", description="Claude CLI executable name")
-    auto_start: bool = Field(default=True, description="Auto-launch Claude Code after setup")
+    claude_cli_name: str = Field(
+        default="claude", description="Claude CLI executable name"
+    )
+    auto_start: bool = Field(
+        default=True, description="Auto-launch Claude Code after setup"
+    )
     show_progress: bool = Field(default=True, description="Show progress indicators")
     color_output: bool = Field(default=True, description="Enable colored output")
 
     # UI styling
     pointer_style: str = Field(default="❯", description="Menu pointer character")
     selected_color: str = Field(default="ansiblue", description="Selected item color")
-    highlighted_color: str = Field(default="ansiblue", description="Highlighted item color")
+    highlighted_color: str = Field(
+        default="ansiblue", description="Highlighted item color"
+    )
 
 
 class ClauthConfig(BaseModel):
@@ -96,12 +104,16 @@ class ConfigManager:
 
     def _get_default_config_dir(self) -> Path:
         """Get the default configuration directory."""
-        if os.name == 'nt':  # Windows
-            config_home = Path(os.environ.get('APPDATA', Path.home() / 'AppData' / 'Roaming'))
+        if os.name == "nt":  # Windows
+            config_home = Path(
+                os.environ.get("APPDATA", Path.home() / "AppData" / "Roaming")
+            )
         else:  # Unix-like
-            config_home = Path(os.environ.get('XDG_CONFIG_HOME', Path.home() / '.config'))
+            config_home = Path(
+                os.environ.get("XDG_CONFIG_HOME", Path.home() / ".config")
+            )
 
-        return config_home / 'clauth'
+        return config_home / "clauth"
 
     def load(self, profile: Optional[str] = None) -> ClauthConfig:
         """Load configuration from file with optional profile support."""
@@ -109,7 +121,7 @@ class ConfigManager:
 
         if config_file.exists():
             try:
-                with open(config_file, 'r', encoding='utf-8') as f:
+                with open(config_file, "r", encoding="utf-8") as f:
                     config_data = toml.load(f)
                 self._config = ClauthConfig(**config_data)
             except (toml.TomlDecodeError, ValueError) as e:
@@ -138,7 +150,7 @@ class ConfigManager:
         config_file = self._get_config_file(profile)
         config_data = self._config.dict()
 
-        with open(config_file, 'w', encoding='utf-8') as f:
+        with open(config_file, "w", encoding="utf-8") as f:
             toml.dump(config_data, f)
 
     def _get_config_file(self, profile: Optional[str] = None) -> Path:
@@ -153,29 +165,29 @@ class ConfigManager:
             return
 
         # AWS configuration overrides
-        if env_profile := os.environ.get('CLAUTH_PROFILE'):
+        if env_profile := os.environ.get("CLAUTH_PROFILE"):
             self._config.aws.profile = env_profile
-        if env_region := os.environ.get('CLAUTH_REGION'):
+        if env_region := os.environ.get("CLAUTH_REGION"):
             self._config.aws.region = env_region
-        if env_sso_url := os.environ.get('CLAUTH_SSO_START_URL'):
+        if env_sso_url := os.environ.get("CLAUTH_SSO_START_URL"):
             self._config.aws.sso_start_url = env_sso_url
-        if env_sso_region := os.environ.get('CLAUTH_SSO_REGION'):
+        if env_sso_region := os.environ.get("CLAUTH_SSO_REGION"):
             self._config.aws.sso_region = env_sso_region
-        if env_session_name := os.environ.get('CLAUTH_SESSION_NAME'):
+        if env_session_name := os.environ.get("CLAUTH_SESSION_NAME"):
             self._config.aws.session_name = env_session_name
 
         # CLI configuration overrides
-        if env_claude_cli := os.environ.get('CLAUTH_CLAUDE_CLI_NAME'):
+        if env_claude_cli := os.environ.get("CLAUTH_CLAUDE_CLI_NAME"):
             self._config.cli.claude_cli_name = env_claude_cli
-        if env_auto_start := os.environ.get('CLAUTH_AUTO_START'):
-            self._config.cli.auto_start = env_auto_start.lower() in ('true', '1', 'yes')
+        if env_auto_start := os.environ.get("CLAUTH_AUTO_START"):
+            self._config.cli.auto_start = env_auto_start.lower() in ("true", "1", "yes")
 
         # Model configuration overrides
-        if env_provider := os.environ.get('CLAUTH_PROVIDER_FILTER'):
+        if env_provider := os.environ.get("CLAUTH_PROVIDER_FILTER"):
             self._config.models.provider_filter = env_provider
-        if env_default_model := os.environ.get('CLAUTH_DEFAULT_MODEL'):
+        if env_default_model := os.environ.get("CLAUTH_DEFAULT_MODEL"):
             self._config.models.default_model = env_default_model
-        if env_fast_model := os.environ.get('CLAUTH_FAST_MODEL'):
+        if env_fast_model := os.environ.get("CLAUTH_FAST_MODEL"):
             self._config.models.fast_model = env_fast_model
 
     def _migrate_placeholder_urls(self) -> None:
@@ -184,9 +196,14 @@ class ConfigManager:
             return
 
         # Check if sso_start_url contains the old placeholder
-        if (self._config.aws.sso_start_url and
-            self._config.aws.sso_start_url == "https://d-xxxxxxxxxx.awsapps.com/start/"):
-            print("Warning: Migrating placeholder SSO start URL to None. You'll need to provide a real URL during init.")
+        if (
+            self._config.aws.sso_start_url
+            and self._config.aws.sso_start_url
+            == "https://d-xxxxxxxxxx.awsapps.com/start/"
+        ):
+            print(
+                "Warning: Migrating placeholder SSO start URL to None. You'll need to provide a real URL during init."
+            )
             self._config.aws.sso_start_url = None
             # Save the migrated config
             self.save()
@@ -198,8 +215,9 @@ class ConfigManager:
             self.load()
         return self._config
 
-    def update_model_settings(self, default_model: str, fast_model: str,
-                            default_arn: str, fast_arn: str) -> None:
+    def update_model_settings(
+        self, default_model: str, fast_model: str, default_arn: str, fast_arn: str
+    ) -> None:
         """Update model settings and save configuration."""
         if self._config is None:
             self.load()
@@ -219,7 +237,8 @@ class ConfigManager:
             "answer": "bold",
             "pointer": cli_config.selected_color,
             "highlighted": cli_config.highlighted_color,
-            "selected": cli_config.selected_color
+            "selected": cli_config.selected_color,
+            "border": cli_config.selected_color,
         }
 
     def list_profiles(self) -> list[str]:

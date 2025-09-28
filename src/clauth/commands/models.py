@@ -25,7 +25,7 @@ model_app = typer.Typer(
 def list_models(
     profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
     region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
-    show_arn: bool = typer.Option(False, "--show-arn", help="Show model ARNs")
+    show_arn: bool = typer.Option(False, "--show-arn", help="Show model ARNs"),
 ):
     """
     List available Bedrock models.
@@ -47,11 +47,11 @@ def list_models(
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
-            provider=config.models.provider_filter
+            provider=config.models.provider_filter,
         )
     for model_id, model_arn in zip(model_ids, model_arns):
         if show_arn:
-            print(model_id, ' --> ', model_arn)
+            print(model_id, " --> ", model_arn)
         else:
             print(model_id)
 
@@ -60,8 +60,10 @@ def list_models(
 def switch_models(
     profile: str = typer.Option(None, "--profile", "-p", help="AWS profile to use"),
     region: str = typer.Option(None, "--region", "-r", help="AWS region to use"),
-    default_only: bool = typer.Option(False, "--default-only", help="Only change default model"),
-    fast_only: bool = typer.Option(False, "--fast-only", help="Only change fast model")
+    default_only: bool = typer.Option(
+        False, "--default-only", help="Only change default model"
+    ),
+    fast_only: bool = typer.Option(False, "--fast-only", help="Only change fast model"),
 ):
     """
     Interactively switch the default and fast models.
@@ -77,7 +79,10 @@ def switch_models(
 
     # Validate that both flags aren't set
     if default_only and fast_only:
-        typer.secho("Error: Cannot use both --default-only and --fast-only flags together.", fg=typer.colors.RED)
+        typer.secho(
+            "Error: Cannot use both --default-only and --fast-only flags together.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     # Check authentication
@@ -87,7 +92,10 @@ def switch_models(
 
     # Check if models are configured
     if not config.models.default_model or not config.models.fast_model:
-        typer.secho("Model configuration missing. Run 'clauth init' for initial setup.", fg=typer.colors.RED)
+        typer.secho(
+            "Model configuration missing. Run 'clauth init' for initial setup.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     # Show current models
@@ -101,11 +109,14 @@ def switch_models(
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
-            provider=config.models.provider_filter
+            provider=config.models.provider_filter,
         )
 
     if not model_ids:
-        typer.secho("No models found. Check your AWS permissions and region.", fg=typer.colors.RED)
+        typer.secho(
+            "No models found. Check your AWS permissions and region.",
+            fg=typer.colors.RED,
+        )
         raise typer.Exit(1)
 
     # Create model map for ARN lookup
@@ -124,12 +135,14 @@ def switch_models(
         new_default_model = inquirer.select(
             message="Select new default model:",
             instruction="↑↓ move • Enter select",
-            pointer="> ",
+            pointer="▶ ",
             amark="✔",
             choices=model_ids,
-            default=config.models.default_model if config.models.default_model in model_ids else (model_ids[0] if model_ids else None),
+            default=config.models.default_model
+            if config.models.default_model in model_ids
+            else (model_ids[0] if model_ids else None),
             style=custom_style,
-            max_height="100%"
+            max_height="100%",
         ).execute()
 
     if not default_only:
@@ -137,16 +150,21 @@ def switch_models(
         new_fast_model = inquirer.select(
             message="Select new small/fast model:",
             instruction="↑↓ move • Enter select",
-            pointer="> ",
+            pointer="▶ ",
             amark="✔",
             choices=model_ids,
-            default=config.models.fast_model if config.models.fast_model in model_ids else (model_ids[-1] if model_ids else None),
+            default=config.models.fast_model
+            if config.models.fast_model in model_ids
+            else (model_ids[-1] if model_ids else None),
             style=custom_style,
-            max_height="100%"
+            max_height="100%",
         ).execute()
 
     # Check if anything changed
-    if new_default_model == config.models.default_model and new_fast_model == config.models.fast_model:
+    if (
+        new_default_model == config.models.default_model
+        and new_fast_model == config.models.fast_model
+    ):
         console.print("[yellow]No changes made.[/yellow]")
         return
 
@@ -155,7 +173,7 @@ def switch_models(
         default_model=new_default_model,
         fast_model=new_fast_model,
         default_arn=model_map[new_default_model],
-        fast_arn=model_map[new_fast_model]
+        fast_arn=model_map[new_fast_model],
     )
 
     # Show confirmation

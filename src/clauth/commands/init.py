@@ -28,6 +28,7 @@ app = typer.Typer()
 console = Console()
 env = os.environ.copy()
 
+
 def init(
     profile: str = typer.Option(
         None,
@@ -186,7 +187,7 @@ def init(
                 model_id_default = inquirer.select(
                     message="Select your [default] model:",
                     instruction="↑↓ move • Enter select",
-                    pointer="> ",
+                    pointer="▶ ",
                     amark="✔",
                     choices=model_ids,
                     default=config.models.default_model
@@ -199,7 +200,7 @@ def init(
                 model_id_fast = inquirer.select(
                     message="Select your [small/fast] model (you can choose the same as default):",
                     instruction="↑↓ move • Enter select",
-                    pointer="> ",
+                    pointer="▶ ",
                     amark="✔",
                     choices=model_ids,
                     default=config.models.fast_model
@@ -233,7 +234,7 @@ def init(
             model_id_default = inquirer.select(
                 message="Select your [default] model:",
                 instruction="↑↓ move • Enter select",
-                pointer="> ",
+                pointer="▶ ",
                 amark="✔",
                 choices=model_ids,
                 default=model_ids[0] if model_ids else None,
@@ -244,7 +245,7 @@ def init(
             model_id_fast = inquirer.select(
                 message="Select your [small/fast] model (you can choose the same as default):",
                 instruction="↑↓ move • Enter select",
-                pointer="> ",
+                pointer="▶ ",
                 amark="✔",
                 choices=model_ids,
                 default=model_ids[-1] if model_ids else None,

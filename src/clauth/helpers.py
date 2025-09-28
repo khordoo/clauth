@@ -83,7 +83,7 @@ def choose_auth_method():
             {"name": "🔑 IAM User Access Keys (for solo developers)", "value": "iam"},
             {"name": "⏭️  Skip (I'm already configured)", "value": "skip"},
         ],
-        pointer="> ",
+        pointer="▶ ",
         amark="✔",
         style=custom_style,
         max_height="100%",
@@ -219,7 +219,7 @@ def prompt_for_region_if_needed(config, cli_overrides):
             default=config.aws.region
             if config.aws.region in region_options
             else "us-east-1",
-            pointer="> ",
+            pointer="▶ ",
             amark="✔",
         ).execute()
 
