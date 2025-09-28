@@ -29,17 +29,18 @@ def test_clear_screen(mocker):
     mock_system.assert_called_once_with("clear")
 
 
-def test_show_welcome_logo(mocker):
-    """Test show_welcome_logo function."""
+def test_show_welcome_logo(capsys):
+    """Test show_welcome_logo function renders banner content."""
     from rich.console import Console
 
     console = Console()
-    mock_print = mocker.patch.object(console, "print")
 
     show_welcome_logo(console)
 
-    # Verify that print was called (we don't need to check exact output)
-    assert mock_print.call_count >= 2  # Should print logo and welcome text
+    output = capsys.readouterr().out
+    assert "Welcome to CLAUTH" in output
+    assert "Configure Claude Code with AWS Bedrock in minutes." in output
+    assert "Requires AWS CLI v2" in output
 
 
 def test_choose_auth_method(mocker):

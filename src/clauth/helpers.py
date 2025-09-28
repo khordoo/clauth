@@ -18,9 +18,8 @@ from clauth.config import get_config_manager
 from clauth.aws_utils import list_bedrock_profiles
 from InquirerPy import inquirer
 from rich.console import Console
-from pyfiglet import Figlet
-from textwrap import dedent
 from InquirerPy import get_style
+from clauth.ui import render_banner
 
 console = Console()
 
@@ -36,28 +35,18 @@ def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def show_welcome_logo(console: Console) -> None:
-    """
-    Display the CLAUTH welcome logo.
+def show_welcome_logo(console: Console | None = None) -> None:
+    """Display the CLAUTH welcome banner."""
 
-    Args:
-        console: Rich console instance for styled output
-    """
-    f = Figlet(font="slant")
-    logo = f.renderText("CLAUTH")
-    console.print(logo, style="bold cyan")
-
-    console.print(
-        dedent("""
-        [bold]Welcome to CLAUTH[/bold]
-        Let’s set up your environment for Claude Code on Amazon Bedrock.
-
-        Prerequisites:
-          • AWS CLI v2
-          • Claude Code CLI
-
-        Tip: run [bold]clauth init --help[/bold] to view options.
-    """).strip()
+    _ = console  # Maintained for backwards compatibility; render_banner owns output.
+    render_banner(
+        title="Welcome to CLAUTH",
+        subtitle="Configure Claude Code with AWS Bedrock in minutes.",
+        bullets=[
+            "Requires AWS CLI v2",
+            "Requires Claude Code CLI",
+            "Tip: run `clauth init --help` to view options",
+        ],
     )
 
 

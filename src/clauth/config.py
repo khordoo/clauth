@@ -23,6 +23,7 @@ import toml
 from pathlib import Path
 from typing import Optional, Dict, Any
 from pydantic import BaseModel, Field, field_validator, ConfigDict
+from clauth.ui import inquirer_style, prompt_toolkit_color
 
 
 class AWSConfig(BaseModel):
@@ -231,15 +232,25 @@ class ConfigManager:
     def get_custom_style(self) -> Dict[str, str]:
         """Get InquirerPy custom style based on configuration."""
         cli_config = self.config.cli
-        return {
-            "questionmark": "bold",
-            "instruction": "#858585",
-            "answer": "bold",
-            "pointer": cli_config.selected_color,
-            "highlighted": cli_config.highlighted_color,
-            "selected": cli_config.selected_color,
-            "border": cli_config.selected_color,
-        }
+        custom = inquirer_style()
+
+        # Allow user overrides from configuration while keeping theme defaults.
+        if cli_config.selected_color:
+            custom.update(
+                {
+                    "pointer": prompt_toolkit_color(cli_config.selected_color),
+                    "selected": prompt_toolkit_color(
+                        cli_config.selected_color, bold=True
+                    ),
+                }
+            )
+        if cli_config.highlighted_color:
+            custom["highlighted"] = prompt_toolkit_color(
+                cli_config.highlighted_color, bold=True
+            )
+            custom["border"] = prompt_toolkit_color(cli_config.highlighted_color)
+
+        return custom
 
     def list_profiles(self) -> list[str]:
         """List available configuration profiles."""

@@ -35,11 +35,11 @@ def test_config_show_no_path(mocker, capsys):
 
     assert result.exit_code == 0
     output = result.output
-    assert "CLAUTH Configuration" in output
-    assert "test-profile" in output
-    assert "us-east-1" in output
-    assert "claude-3-5-sonnet" in output
-    assert "claude-3-5-haiku" in output
+    assert "AWS settings" in output
+    assert "Profile: test-profile" in output
+    assert "Region: us-east-1" in output
+    assert "Default model: claude-3-5-sonnet" in output
+    assert "Fast model: claude-3-5-haiku" in output
 
 
 def test_config_show_with_path(mocker, capsys):
@@ -55,7 +55,8 @@ def test_config_show_with_path(mocker, capsys):
 
     assert result.exit_code == 0
     output = result.output
-    assert "Config File: /home/user/.clauth/config.toml" in output
+    assert "Configuration file" in output
+    assert "/home/user/.clauth/config.toml" in output
 
 
 def test_config_show_missing_sso_url(mocker, capsys):

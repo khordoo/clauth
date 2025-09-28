@@ -23,6 +23,7 @@ from clauth.aws_utils import (
 from rich.console import Console
 from InquirerPy import inquirer
 from InquirerPy import get_style
+from clauth.ui import render_card, render_status
 
 app = typer.Typer()
 console = Console()
@@ -238,19 +239,18 @@ def init_command(
     show_welcome_logo(console=console)
 
     try:
-        typer.secho(
-            "Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE
-        )
-        typer.echo()
+        render_status("Step 1 of 3 · Configure AWS authentication", level="info")
 
         _handle_authentication(config, cli_overrides)
 
-        typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
+        render_status("Step 2 of 3 · Select Bedrock models", level="info")
         
         model_id_default, model_id_fast, model_map = _handle_model_selection(config, config_manager, console)
-
-        typer.echo(f"Default model: {model_id_default}")
-        typer.echo(f"Small/Fast model: {model_id_fast}")
+        render_card(
+            title="Model selection",
+            body=f"Default model: {model_id_default}\nFast model: {model_id_fast}",
+            footer="Models saved to CLAUTH configuration",
+        )
 
         env.update(
             {
@@ -262,18 +262,19 @@ def init_command(
             }
         )
 
-        typer.echo(
-            f"default model: {model_id_default}\n small/fast model: {model_id_fast}\n"
-        )
-
         if config.cli.auto_start:
-            typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
-            typer.secho("Step 3/3 — Launching Claude Code...", fg=typer.colors.BLUE)
+            render_status(
+                "Step 3 of 3 · Setup complete",
+                level="success",
+                footer="Launching Claude Code with your Bedrock configuration",
+            )
             _launch_claude_cli(config, env)
         else:
-            typer.secho("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
-            typer.echo("Run the Claude Code CLI when you're ready: ", nl=False)
-            typer.secho(config.cli.claude_cli_name, bold=True)
+            render_status(
+                "Step 3 of 3 · Setup complete",
+                level="success",
+                footer=f"Next: run `{config.cli.claude_cli_name}` when you're ready",
+            )
 
     except subprocess.CalledProcessError as e:
         typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
