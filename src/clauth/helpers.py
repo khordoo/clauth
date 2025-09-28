@@ -79,15 +79,16 @@ def choose_auth_method():
         message="Choose your authentication method:",
         instruction="↑↓ move • Enter select",
         choices=[
-            {"name": "🏢 AWS SSO (for teams/organizations)", "value": "sso"},
-            {"name": "🔑 IAM User Access Keys (for solo developers)", "value": "iam"},
-            {"name": "⏭️  Skip (I'm already configured)", "value": "skip"},
+            {"name": "AWS SSO (for teams/organizations)", "value": "sso"},
+            {"name": "IAM User Access Keys (for solo developers)", "value": "iam"},
+            {"name": "Skip (I'm already configured)", "value": "skip"},
         ],
         pointer="▶ ",
         amark="✔",
         style=custom_style,
         max_height="100%",
     ).execute()
+
 
 def get_app_path(exe_name: str = "claude") -> str:
     """Find the full path to an executable in a cross-platform way.
