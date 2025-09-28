@@ -24,7 +24,7 @@ from clauth.commands import (
     model_app,
     delete,
     config_app,
-    init,
+    init_command,
 )
 from clauth.launcher import launch_claude_cli
 from rich.console import Console
@@ -49,7 +49,7 @@ def main(ctx: typer.Context):
         launch_claude_cli()
 
 # Register commands from modules
-app.command()(init)
+app.command(name="init")(init_command)
 app.add_typer(model_app, name="model")
 app.add_typer(config_app, name="config")
 app.command()(delete)

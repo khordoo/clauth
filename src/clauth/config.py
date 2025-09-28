@@ -22,7 +22,7 @@ import os
 import toml
 from pathlib import Path
 from typing import Optional, Dict, Any
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator, ConfigDict
 
 
 class AWSConfig(BaseModel):
@@ -38,8 +38,9 @@ class AWSConfig(BaseModel):
     session_name: str = Field(default="clauth-session", description="SSO session name")
     output_format: str = Field(default="json", description="AWS CLI output format")
 
-    @validator("sso_start_url")
-    def validate_sso_url(cls, v):
+    @field_validator("sso_start_url")
+    @classmethod
+    def validate_sso_url(cls, v: str) -> Optional[str]:
         if v is not None and not v.startswith("https://"):
             raise ValueError("SSO start URL must be HTTPS")
         return v
@@ -84,8 +85,7 @@ class ClauthConfig(BaseModel):
     models: ModelConfig = Field(default_factory=ModelConfig)
     cli: CLIConfig = Field(default_factory=CLIConfig)
 
-    class Config:
-        extra = "forbid"  # Don't allow extra fields
+    model_config = ConfigDict(extra="forbid")
 
 
 class ConfigManager:
@@ -148,7 +148,7 @@ class ConfigManager:
             raise ValueError("No configuration loaded to save")
 
         config_file = self._get_config_file(profile)
-        config_data = self._config.dict()
+        config_data = self._config.model_dump()
 
         with open(config_file, "w", encoding="utf-8") as f:
             toml.dump(config_data, f)

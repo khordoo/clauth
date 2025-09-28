@@ -29,7 +29,129 @@ console = Console()
 env = os.environ.copy()
 
 
-def init(
+def _handle_authentication(config, cli_overrides):
+    """Handles the logic for AWS authentication."""
+    auth_method = choose_auth_method()
+    typer.echo()
+
+    if not prompt_for_region_if_needed(config, cli_overrides):
+        raise typer.Exit(1)
+
+    if auth_method == "skip":
+        if not aws.user_is_authenticated(profile=config.aws.profile):
+            typer.secho(
+                "❌ No valid authentication found. Please choose an authentication method.",
+                fg=typer.colors.RED,
+            )
+            raise typer.Exit(1)
+        typer.secho(
+            f"✅ Already authenticated with AWS profile '{config.aws.profile}'",
+            fg=typer.colors.GREEN,
+        )
+        typer.echo("Skipping credential setup...")
+    elif auth_method == "iam":
+        if not setup_iam_user_auth(config.aws.profile, config.aws.region):
+            raise typer.Exit(1)
+    elif auth_method == "sso":
+        if not setup_sso_auth(config, cli_overrides):
+            raise typer.Exit(1)
+
+
+def _launch_claude_cli(config, env):
+    """Launches the Claude Code CLI with the given environment."""
+    try:
+        claude_path = get_app_path(config.cli.claude_cli_name)
+        clear_screen()
+        subprocess.run([claude_path], env=env, check=True)
+    except ExecutableNotFoundError as e:
+        typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
+        typer.secho(
+            "Please install Claude Code CLI and ensure it's in your PATH.",
+            fg=typer.colors.YELLOW,
+        )
+        raise typer.Exit(1)
+    except ValueError as e:
+        typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+        raise typer.Exit(1)
+
+
+def _handle_model_selection(config, config_manager, console):
+    """Handles the logic for selecting Bedrock models."""
+    # Check if we have existing model configuration
+    if config.models.default_model_arn and config.models.fast_model_arn:
+        typer.echo("Found existing model configuration:")
+        typer.echo(f"  Default model: {config.models.default_model}")
+        typer.echo(f"  Small/Fast model: {config.models.fast_model}")
+
+        # Get custom style from config manager
+        custom_style = get_style(config_manager.get_custom_style())
+
+        use_existing = inquirer.confirm(
+            message="Use existing model configuration?",
+            default=True,
+            style=custom_style,
+        ).execute()
+
+        if use_existing:
+            model_id_default = config.models.default_model
+            model_id_fast = config.models.fast_model
+            model_map = {
+                model_id_default: config.models.default_model_arn,
+                model_id_fast: config.models.fast_model_arn,
+            }
+            typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
+            return model_id_default, model_id_fast, model_map
+    
+    # No existing configuration or user chose not to use it, do full model discovery
+    with console.status("[bold blue]Discovering available models...") as status:
+        model_ids, model_arns = aws.list_bedrock_profiles(
+            profile=config.aws.profile,
+            region=config.aws.region,
+            provider=config.models.provider_filter,
+        )
+
+    # Get custom style from config manager
+    custom_style = get_style(config_manager.get_custom_style())
+
+    model_id_default = inquirer.select(
+        message="Select your [default] model:",
+        instruction="↑↓ move • Enter select",
+        pointer="▶ ",
+        amark="✔",
+        choices=model_ids,
+        default=config.models.default_model
+        if config.models.default_model in model_ids
+        else (model_ids[0] if model_ids else None),
+        style=custom_style,
+        max_height="100%",
+    ).execute()
+
+    model_id_fast = inquirer.select(
+        message="Select your [small/fast] model (you can choose the same as default):",
+        instruction="↑↓ move • Enter select",
+        pointer="▶ ",
+        amark="✔",
+        choices=model_ids,
+        default=config.models.fast_model
+        if config.models.fast_model in model_ids
+        else (model_ids[-1] if model_ids else None),
+        style=custom_style,
+        max_height="100%",
+    ).execute()
+
+    model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
+
+    # Save updated model selections to configuration
+    config_manager.update_model_settings(
+        default_model=model_id_default,
+        fast_model=model_id_fast,
+        default_arn=model_map[model_id_default],
+        fast_arn=model_map[model_id_fast],
+    )
+    return model_id_default, model_id_fast, model_map
+
+
+def init_command(
     profile: str = typer.Option(
         None,
         "--profile",
@@ -121,147 +243,11 @@ def init(
         )
         typer.echo()
 
-        auth_method = choose_auth_method()
-        typer.echo()
-
-        if not prompt_for_region_if_needed(config, cli_overrides):
-            raise typer.Exit(1)
-
-        if auth_method == "skip":
-            # Check if user is already authenticated when skipping
-            if aws.user_is_authenticated(profile=config.aws.profile):
-                typer.secho(
-                    f"✅ Already authenticated with AWS profile '{config.aws.profile}'",
-                    fg=typer.colors.GREEN,
-                )
-                typer.echo("Skipping credential setup...")
-            else:
-                typer.secho(
-                    "❌ No valid authentication found. Please choose an authentication method.",
-                    fg=typer.colors.RED,
-                )
-                raise typer.Exit(1)
-        elif auth_method == "iam":
-            if not setup_iam_user_auth(config.aws.profile, config.aws.region):
-                raise typer.Exit(1)
-        elif auth_method == "sso":
-            if not setup_sso_auth(config, cli_overrides):
-                raise typer.Exit(1)
+        _handle_authentication(config, cli_overrides)
 
         typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
-
-        # Check if we have existing model configuration
-        if config.models.default_model_arn and config.models.fast_model_arn:
-            typer.echo(f"Found existing model configuration:")
-            typer.echo(f"  Default model: {config.models.default_model}")
-            typer.echo(f"  Small/Fast model: {config.models.fast_model}")
-
-            # Get custom style from config manager
-            custom_style = get_style(config_manager.get_custom_style())
-
-            use_existing = inquirer.confirm(
-                message="Use existing model configuration?",
-                default=True,
-                style=custom_style,
-            ).execute()
-
-            if use_existing:
-                model_id_default = config.models.default_model
-                model_id_fast = config.models.fast_model
-                model_map = {
-                    model_id_default: config.models.default_model_arn,
-                    model_id_fast: config.models.fast_model_arn,
-                }
-                typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
-            else:
-                # Re-discover and select models
-                with console.status(
-                    "[bold blue]Discovering available models..."
-                ) as status:
-                    model_ids, model_arns = aws.list_bedrock_profiles(
-                        profile=config.aws.profile,
-                        region=config.aws.region,
-                        provider=config.models.provider_filter,
-                    )
-
-                model_id_default = inquirer.select(
-                    message="Select your [default] model:",
-                    instruction="↑↓ move • Enter select",
-                    pointer="▶ ",
-                    amark="✔",
-                    choices=model_ids,
-                    default=config.models.default_model
-                    if config.models.default_model in model_ids
-                    else (model_ids[0] if model_ids else None),
-                    style=custom_style,
-                    max_height="100%",
-                ).execute()
-
-                model_id_fast = inquirer.select(
-                    message="Select your [small/fast] model (you can choose the same as default):",
-                    instruction="↑↓ move • Enter select",
-                    pointer="▶ ",
-                    amark="✔",
-                    choices=model_ids,
-                    default=config.models.fast_model
-                    if config.models.fast_model in model_ids
-                    else (model_ids[-1] if model_ids else None),
-                    style=custom_style,
-                    max_height="100%",
-                ).execute()
-
-                model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
-
-                # Save updated model selections to configuration
-                config_manager.update_model_settings(
-                    default_model=model_id_default,
-                    fast_model=model_id_fast,
-                    default_arn=model_map[model_id_default],
-                    fast_arn=model_map[model_id_fast],
-                )
-        else:
-            # No existing configuration, do full model discovery and selection
-            with console.status("[bold blue]Discovering available models...") as status:
-                model_ids, model_arns = aws.list_bedrock_profiles(
-                    profile=config.aws.profile,
-                    region=config.aws.region,
-                    provider=config.models.provider_filter,
-                )
-
-            # Get custom style from config manager
-            custom_style = get_style(config_manager.get_custom_style())
-
-            model_id_default = inquirer.select(
-                message="Select your [default] model:",
-                instruction="↑↓ move • Enter select",
-                pointer="▶ ",
-                amark="✔",
-                choices=model_ids,
-                default=model_ids[0] if model_ids else None,
-                style=custom_style,
-                max_height="100%",
-            ).execute()
-
-            model_id_fast = inquirer.select(
-                message="Select your [small/fast] model (you can choose the same as default):",
-                instruction="↑↓ move • Enter select",
-                pointer="▶ ",
-                amark="✔",
-                choices=model_ids,
-                default=model_ids[-1] if model_ids else None,
-                style=custom_style,
-                max_height="100%",
-            ).execute()
-
-            model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
-
-            # Save model selections to configuration
-            config_manager.update_model_settings(
-                default_model=model_id_default,
-                fast_model=model_id_fast,
-                default_arn=model_map[model_id_default],
-                fast_arn=model_map[model_id_fast],
-            )
+        
+        model_id_default, model_id_fast, model_map = _handle_model_selection(config, config_manager, console)
 
         typer.echo(f"Default model: {model_id_default}")
         typer.echo(f"Small/Fast model: {model_id_fast}")
@@ -283,20 +269,7 @@ def init(
         if config.cli.auto_start:
             typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
             typer.secho("Step 3/3 — Launching Claude Code...", fg=typer.colors.BLUE)
-            try:
-                claude_path = get_app_path(config.cli.claude_cli_name)
-                clear_screen()
-                subprocess.run([claude_path], env=env, check=True)
-            except ExecutableNotFoundError as e:
-                typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
-                typer.secho(
-                    f"Please install Claude Code CLI and ensure it's in your PATH.",
-                    fg=typer.colors.YELLOW,
-                )
-                raise typer.Exit(1)
-            except ValueError as e:
-                typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
-                raise typer.Exit(1)
+            _launch_claude_cli(config, env)
         else:
             typer.secho("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
             typer.echo("Run the Claude Code CLI when you're ready: ", nl=False)
