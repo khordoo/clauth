@@ -72,7 +72,7 @@ addopts = [
     "--cov=src/clauth",
     "--cov-report=term-missing",
     "--cov-report=html",
-    "--cov-fail-under=14",
+    "--cov-fail-under=83",
 ]
 markers = [
     "integration: marks tests as integration tests (deselect with '-m \"not integration\"')",
