@@ -45,25 +45,25 @@ def _handle_authentication(config, cli_overrides):
             )
             raise typer.Exit(1)
         summary = {
-            "message": f"Authentication: existing AWS profile '{config.aws.profile}'",
+            "message": f"Authentication: existing AWS profile '{config.aws.profile}' · Region: {config.aws.region}",
             "level": "success",
-            "footer": f"Region: {config.aws.region}",
         }
     elif auth_method == "iam":
         if not setup_iam_user_auth(config.aws.profile, config.aws.region):
             raise typer.Exit(1)
         summary = {
-            "message": f"Authentication: IAM access keys for '{config.aws.profile}'",
+            "message": f"Authentication: IAM access keys for '{config.aws.profile}' · Region: {config.aws.region}",
             "level": "success",
-            "footer": f"Region: {config.aws.region}",
         }
     elif auth_method == "sso":
         if not setup_sso_auth(config, cli_overrides):
             raise typer.Exit(1)
         summary = {
-            "message": f"Authentication: SSO session '{config.aws.session_name}'",
+            "message": (
+                f"Authentication: SSO session '{config.aws.session_name}' "
+                f"· Profile: {config.aws.profile} · Region: {config.aws.region}"
+            ),
             "level": "success",
-            "footer": f"Profile: {config.aws.profile} · Region: {config.aws.region}",
         }
     else:  # pragma: no cover - defensive guard
         summary = {
