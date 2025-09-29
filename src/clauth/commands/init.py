@@ -33,29 +33,45 @@ env = os.environ.copy()
 def _handle_authentication(config, cli_overrides):
     """Handles the logic for AWS authentication."""
     auth_method = choose_auth_method()
-    typer.echo()
 
     if not prompt_for_region_if_needed(config, cli_overrides):
         raise typer.Exit(1)
 
     if auth_method == "skip":
         if not aws.user_is_authenticated(profile=config.aws.profile):
-            typer.secho(
-                "❌ No valid authentication found. Please choose an authentication method.",
-                fg=typer.colors.RED,
+            render_status(
+                "No valid authentication found. Please choose an authentication method.",
+                level="error",
             )
             raise typer.Exit(1)
-        typer.secho(
-            f"✅ Already authenticated with AWS profile '{config.aws.profile}'",
-            fg=typer.colors.GREEN,
-        )
-        typer.echo("Skipping credential setup...")
+        summary = {
+            "message": f"Authentication: existing AWS profile '{config.aws.profile}'",
+            "level": "success",
+            "footer": f"Region: {config.aws.region}",
+        }
     elif auth_method == "iam":
         if not setup_iam_user_auth(config.aws.profile, config.aws.region):
             raise typer.Exit(1)
+        summary = {
+            "message": f"Authentication: IAM access keys for '{config.aws.profile}'",
+            "level": "success",
+            "footer": f"Region: {config.aws.region}",
+        }
     elif auth_method == "sso":
         if not setup_sso_auth(config, cli_overrides):
             raise typer.Exit(1)
+        summary = {
+            "message": f"Authentication: SSO session '{config.aws.session_name}'",
+            "level": "success",
+            "footer": f"Profile: {config.aws.profile} · Region: {config.aws.region}",
+        }
+    else:  # pragma: no cover - defensive guard
+        summary = {
+            "message": "Authentication method completed",
+            "level": "success",
+        }
+
+    return summary
 
 
 def _launch_claude_cli(config, env):
@@ -236,20 +252,60 @@ def init_command(
     if auto_start is not None:
         config.cli.auto_start = auto_start
 
-    show_welcome_logo(console=console)
+    summary_entries: list[dict[str, str]] = []
+
+    def redraw(active_message: str | None = None, instruction: dict | None = None) -> None:
+        clear_screen()
+        show_welcome_logo(console=console)
+
+        for entry in summary_entries:
+            render_status(
+                entry.get("message", ""),
+                level=entry.get("level", "info"),
+                footer=entry.get("footer"),
+            )
+
+        if active_message:
+            render_status(active_message, level="info")
+
+        if instruction:
+            render_card(
+                title=instruction.get("title"),
+                body=instruction.get("body", ""),
+                footer=instruction.get("footer"),
+            )
 
     try:
-        render_status("Step 1 of 3 · Configure AWS authentication", level="info")
+        redraw(
+            active_message="Step 1 of 3 · Configure AWS authentication",
+            instruction={
+                "title": "Authentication",
+                "body": "Choose how CLAUTH should authenticate with AWS Bedrock.",
+                "footer": "Recommended: IAM Identity Center (SSO) for team accounts.",
+            },
+        )
 
-        _handle_authentication(config, cli_overrides)
+        auth_summary = _handle_authentication(config, cli_overrides)
+        summary_entries.append(auth_summary)
 
-        render_status("Step 2 of 3 · Select Bedrock models", level="info")
-        
-        model_id_default, model_id_fast, model_map = _handle_model_selection(config, config_manager, console)
-        render_card(
-            title="Model selection",
-            body=f"Default model: {model_id_default}\nFast model: {model_id_fast}",
-            footer="Models saved to CLAUTH configuration",
+        redraw(
+            active_message="Step 2 of 3 · Select Bedrock models",
+            instruction={
+                "title": "Model selection",
+                "body": "Pick your default and fast Bedrock models. You can reuse existing choices.",
+            },
+        )
+
+        model_id_default, model_id_fast, model_map = _handle_model_selection(
+            config, config_manager, console
+        )
+
+        summary_entries.append(
+            {
+                "message": "Models configured",
+                "level": "success",
+                "footer": f"Default: {model_id_default} · Fast: {model_id_fast}",
+            }
         )
 
         env.update(
@@ -262,19 +318,27 @@ def init_command(
             }
         )
 
+        redraw(active_message="Step 3 of 3 · Finalize setup")
+
         if config.cli.auto_start:
-            render_status(
-                "Step 3 of 3 · Setup complete",
-                level="success",
-                footer="Launching Claude Code with your Bedrock configuration",
+            summary_entries.append(
+                {
+                    "message": "Auto-start enabled",
+                    "level": "success",
+                    "footer": "Launching Claude Code with your configuration",
+                }
             )
+            redraw()
             _launch_claude_cli(config, env)
         else:
-            render_status(
-                "Step 3 of 3 · Setup complete",
-                level="success",
-                footer=f"Next: run `{config.cli.claude_cli_name}` when you're ready",
+            summary_entries.append(
+                {
+                    "message": "Setup complete",
+                    "level": "success",
+                    "footer": f"Run `{config.cli.claude_cli_name}` when you're ready.",
+                }
             )
+            redraw()
 
     except subprocess.CalledProcessError as e:
         typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
