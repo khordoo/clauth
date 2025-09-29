@@ -49,6 +49,11 @@ def _handle_authentication(config, cli_overrides):
             "level": "success",
         }
     elif auth_method == "iam":
+        render_card(
+            title="AWS credentials",
+            body="Enter your AWS Access Key and Secret Key for CLAUTH.",
+            footer="Get from: AWS Console → IAM → Users → your user → Security credentials",
+        )
         if not setup_iam_user_auth(config.aws.profile, config.aws.region):
             raise typer.Exit(1)
         summary = {

@@ -42,13 +42,6 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
     Returns:
         bool: True if setup successful, False otherwise
     """
-    typer.secho("Setting up IAM user authentication...", fg=typer.colors.BLUE)
-    typer.echo("You'll need your AWS Access Key ID and Secret Access Key.")
-    typer.echo(
-        "Get these from: AWS Console → IAM → Users → [Your User] → Security credentials"
-    )
-    typer.echo()
-
     try:
         # Set the region first, so it's the default in the interactive prompt
         subprocess.run(
@@ -91,16 +84,7 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
 
         # Verify that the credentials are valid
         if not user_is_authenticated(profile=profile):
-            typer.secho(
-                "❌ IAM authentication failed. Please check your credentials and try again.",
-                fg=typer.colors.RED,
-            )
             return False
-
-        typer.secho(
-            f"✅ IAM user authentication configured for profile '{profile}'",
-            fg=typer.colors.GREEN,
-        )
         return True
     except subprocess.CalledProcessError:
         typer.secho(
