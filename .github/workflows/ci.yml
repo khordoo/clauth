@@ -60,6 +60,30 @@ jobs:
           python -m pip install --upgrade pip
           pip install uv
 
+      - name: Set dev version for TestPyPI
+        run: |
+          python - <<'PY'
+          import os
+          import pathlib
+          import re
+
+          path = pathlib.Path("pyproject.toml")
+          text = path.read_text()
+          match = re.search(r'(?m)^version\s*=\s*"([^"\s]+)"', text)
+          if not match:
+              raise SystemExit("Could not locate version field in pyproject.toml")
+
+          original = match.group(1)
+          base = original.split('.dev')[0]
+          run_number = os.environ.get('GITHUB_RUN_NUMBER') or os.environ.get('GITHUB_RUN_ID') or '0'
+          dev_version = f"{base}.dev{run_number}"
+
+          updated = text[:match.start(1)] + dev_version + text[match.end(1):]
+          path.write_text(updated)
+
+          print(f"Set TestPyPI dev version: {original} -> {dev_version}")
+          PY
+
       - name: Build package
         run: |
           uv pip install --system build
@@ -70,6 +94,7 @@ jobs:
         with:
           password: ${{ secrets.TEST_PYPI_API_TOKEN }}
           repository-url: https://test.pypi.org/legacy/
+          skip-existing: true
 
   publish-pypi:
     name: Publish to PyPI
