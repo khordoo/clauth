@@ -11,14 +11,14 @@ class ColorTheme:
     background: str = "default"
     text_primary: str = "#ffffff"
     text_muted: str = "#9ca3af"
-    accent: str = "#6c5ce7"
+    accent: str = "#9966FF"
     accent_alt: str = "#38bdf8"
-    selection: str = "#22d3ee"
+    selection: str = "#0ea5e8"
     success: str = "#22c55e"
     warning: str = "#facc15"
     error: str = "#f87171"
     danger: str = "#dc2626"
-    border: str = "#6c5ce7"
+    border: str = "#9966FF"
     dim: str = "#6b7280"
 
 

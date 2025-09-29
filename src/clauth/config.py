@@ -73,9 +73,11 @@ class CLIConfig(BaseModel):
 
     # UI styling
     pointer_style: str = Field(default="❯", description="Menu pointer character")
-    selected_color: str = Field(default="ansiblue", description="Selected item color")
-    highlighted_color: str = Field(
-        default="ansiblue", description="Highlighted item color"
+    selected_color: str | None = Field(
+        default=None, description="Selected item color override"
+    )
+    highlighted_color: str | None = Field(
+        default=None, description="Highlighted item color override"
     )
 
 
@@ -235,7 +237,7 @@ class ConfigManager:
         custom = inquirer_style()
 
         # Allow user overrides from configuration while keeping theme defaults.
-        if cli_config.selected_color:
+        if cli_config.selected_color and cli_config.selected_color.lower() != "ansiblue":
             custom.update(
                 {
                     "pointer": prompt_toolkit_color(cli_config.selected_color),
@@ -244,7 +246,7 @@ class ConfigManager:
                     ),
                 }
             )
-        if cli_config.highlighted_color:
+        if cli_config.highlighted_color and cli_config.highlighted_color.lower() != "ansiblue":
             custom["highlighted"] = prompt_toolkit_color(
                 cli_config.highlighted_color, bold=True
             )
