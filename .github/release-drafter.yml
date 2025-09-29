@@ -1,6 +1,12 @@
 name-template: 'v$NEXT_PATCH_VERSION'
 tag-template: 'v$NEXT_PATCH_VERSION'
+
+template: |
+  ## What's Changed
+  $CHANGES
+
 change-template: '- $TITLE (#$NUMBER)'
+change-title-escapes: "`~@"
 categories:
   - title: '🚀 Enhancements'
     labels:
@@ -17,11 +23,6 @@ categories:
   - title: '📚 Documentation'
     labels:
       - docs
-
-change-title-escapes:
-  - "`"
-  - "~"
-  - "@"
 
 include-pre-releases: false
 exclude-labels:
