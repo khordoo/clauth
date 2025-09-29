@@ -15,6 +15,7 @@ CLAUTH streamlines the complex process of configuring AWS SSO, discovering Bedro
 - **Interactive Model Selection** - Choose default and fast models through user-friendly menus
 - **Auto-launch Claude Code** - Seamlessly launches Claude Code CLI with proper configuration
 - **Model Management** - List and manage available Bedrock models
+- **Polished CLI UI** - Themed banners, cards, and progress spinners keep steps focused and easy to follow
 
 ## Prerequisites
 
@@ -71,6 +72,34 @@ This command will:
 3. Discover available Bedrock models
 4. Let you select default and fast models
 5. Launch Claude Code CLI with proper environment
+
+### Sample CLI Experience
+
+```text
+╭──────────────────────────────────────────────────────────────────────────╮
+│                                                                          │
+│  CLAUTH                                                                  │
+│                                                                          │
+│  Quick setup for Claude Code with AWS Bedrock (SSO or IAM)               │
+│  - Requires AWS CLI v2                                                   │
+│  - Requires Claude Code CLI                                              │
+│  - Tip: run `clauth init --help` to view options                         │
+│                                                                          │
+╰──────────────────────────────────────────────────────────────────────────╯
+
+✔ Step 1 of 3 · Configure AWS authentication
+ - Select AWS SSO or IAM keys
+
+✔ AWS region set to us-east-1
+
+╭─ Step 2 of 3 · AWS SSO configuration ────────────────────────────────────╮
+│ CLAUTH will use AWS CLI to open the SSO wizard.                          │
+│ [Delete configuration: clauth delete -y]                                 │
+│ Tip: SSO Start URL usually looks like: https://d-xxxxxx.awsapps.com/start│
+╰──────────────────────────────────────────────────────────────────────────╯
+
+[spinner] Discovering Bedrock models
+```
 
 ### Command Options
 

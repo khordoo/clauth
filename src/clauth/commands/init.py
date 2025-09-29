@@ -92,14 +92,14 @@ def _launch_claude_cli(config, env):
         clear_screen()
         subprocess.run([claude_path], env=env, check=True)
     except ExecutableNotFoundError as e:
-        typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
-        typer.secho(
+        render_status(f"Setup failed: {e}", level="error")
+        render_status(
             "Please install Claude Code CLI and ensure it's in your PATH.",
-            fg=typer.colors.YELLOW,
+            level="warning",
         )
         raise typer.Exit(1)
     except ValueError as e:
-        typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+        render_status(f"Configuration error: {e}", level="error")
         raise typer.Exit(1)
 
 
@@ -366,5 +366,5 @@ def init_command(
             redraw()
 
     except subprocess.CalledProcessError as e:
-        typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
-        exit(f"Failed to setup. Error Code: {e.returncode}")
+        render_status(f"Setup failed. Exit code: {e.returncode}", level="error")
+        raise typer.Exit(1)

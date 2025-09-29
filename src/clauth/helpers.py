@@ -19,7 +19,7 @@ from clauth.aws_utils import list_bedrock_profiles
 from InquirerPy import inquirer
 from rich.console import Console
 from InquirerPy import get_style
-from clauth.ui import render_banner, render_card, render_status
+from clauth.ui import render_banner, render_card, render_status, Spinner
 
 console = Console()
 
@@ -241,7 +241,7 @@ def validate_model_id(id: str):
         typer.Exit: If model ID is not found in available models
     """
     config = get_config_manager().load()
-    with console.status("[bold blue]Validating model ID...") as status:
+    with Spinner("Validating model ID"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,

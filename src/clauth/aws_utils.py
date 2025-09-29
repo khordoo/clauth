@@ -19,6 +19,7 @@ import typer
 import subprocess
 import boto3
 from rich.console import Console
+from clauth.ui import render_status
 from botocore.config import Config
 from botocore.exceptions import (
     NoCredentialsError,
@@ -84,11 +85,20 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
 
         # Verify that the credentials are valid
         if not user_is_authenticated(profile=profile):
+            render_status(
+                "IAM authentication failed. Please check your credentials and try again.",
+                level="error",
+            )
             return False
+        render_status(
+            f"IAM user authentication configured for profile '{profile}'",
+            level="success",
+        )
         return True
     except subprocess.CalledProcessError:
-        typer.secho(
-            "❌ Failed to configure IAM user authentication", fg=typer.colors.RED
+        render_status(
+            "Failed to configure IAM user authentication.",
+            level="error",
         )
         return False
 
@@ -154,13 +164,13 @@ def setup_sso_auth(config, cli_overrides) -> bool:
                 ]
             )
         subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
-        typer.secho(
+        render_status(
             f"Authentication successful for profile '{config.aws.profile}'.",
-            fg=typer.colors.GREEN,
+            level="success",
         )
         return True
     except subprocess.CalledProcessError:
-        typer.secho("❌ SSO setup failed", fg=typer.colors.RED)
+        render_status("SSO setup failed.", level="error")
         return False
 
 

@@ -78,15 +78,15 @@ def test_launch_claude_cli_missing_model_config(mocker):
     # Mock authentication check
     mock_user_is_authenticated = mocker.patch("clauth.launcher.user_is_authenticated", return_value=True)
 
-    # Mock typer.secho
-    mock_secho = mocker.patch("typer.secho")
+    # Mock render_status
+    mock_status = mocker.patch("clauth.launcher.render_status")
 
     # Call the function - should raise typer.Exit
     from click.exceptions import Exit
     with pytest.raises(Exit):
         launch_claude_cli()
 
-    mock_secho.assert_called_once_with("Model configuration missing. Run 'clauth init' for full setup.", fg="red")
+    mock_status.assert_called_once_with("Model configuration missing. Run `clauth init` for full setup.", level="error")
 
 
 def test_launch_claude_cli_executable_not_found(mocker):
@@ -108,16 +108,16 @@ def test_launch_claude_cli_executable_not_found(mocker):
     from clauth.helpers import ExecutableNotFoundError
     mock_get_app_path = mocker.patch("clauth.launcher.get_app_path", side_effect=ExecutableNotFoundError("claude not found"))
 
-    # Mock typer.secho
-    mock_secho = mocker.patch("typer.secho")
+    # Mock render_status
+    mock_status = mocker.patch("clauth.launcher.render_status")
 
     # Call the function - should raise typer.Exit
     from click.exceptions import Exit
     with pytest.raises(Exit):
         launch_claude_cli()
 
-    mock_secho.assert_any_call("Launch failed: claude not found", fg="red")
-    mock_secho.assert_any_call("Please install Claude Code CLI and ensure it's in your PATH.", fg="yellow")
+    mock_status.assert_any_call("Launch failed: claude not found", level="error")
+    mock_status.assert_any_call("Please install Claude Code CLI and ensure it's in your PATH.", level="warning")
 
 
 def test_launch_claude_cli_subprocess_error(mocker):
@@ -144,8 +144,8 @@ def test_launch_claude_cli_subprocess_error(mocker):
     # Mock subprocess.run to raise CalledProcessError
     mock_subprocess_run = mocker.patch("subprocess.run", side_effect=subprocess.CalledProcessError(1, "claude"))
 
-    # Mock typer.secho
-    mock_secho = mocker.patch("typer.secho")
+    # Mock render_status
+    mock_status = mocker.patch("clauth.launcher.render_status")
 
     # Call the function - should raise typer.Exit
     from click.exceptions import Exit
@@ -153,4 +153,4 @@ def test_launch_claude_cli_subprocess_error(mocker):
         launch_claude_cli()
 
     # Check that the error message was called
-    mock_secho.assert_any_call("Configuration error: Command 'claude' returned non-zero exit status 1.", fg="red")
+    mock_status.assert_any_call("Configuration error: Command 'claude' returned non-zero exit status 1.", level="error")
