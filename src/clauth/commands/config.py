@@ -1,9 +1,10 @@
 import typer
 from clauth.config import get_config_manager
 from clauth.ui import render_card, render_status
+from clauth.commands.delete import delete as delete_command
 
 config_app = typer.Typer(
-    help="Display configuration settings.",
+    help="Manage CLAUTH configuration settings.",
     no_args_is_help=True,
 )
 @config_app.command("show")
@@ -64,6 +65,14 @@ def config_show(
     )
 
     render_status(
-        "To remove this configuration and start over, run `clauth delete`.",
+        "To remove this configuration and start over, run `clauth config delete`.",
         level="info",
     )
+
+
+@config_app.command("delete")
+def config_delete(
+    confirm: bool = typer.Option(False, "--yes", "-y", help="Skip confirmation prompt"),
+):
+    """Delete CLAUTH configuration, AWS profile, and SSO data."""
+    delete_command(confirm=confirm)

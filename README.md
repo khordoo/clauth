@@ -114,7 +114,7 @@ clauth model list --show-arn
 Switch between available models without going through the full setup process:
 
 ```bash
-# Interactive model switching
+# Interactive model switching (or use the shortcut `clauth sm`)
 clauth model switch
 ```
 
@@ -140,10 +140,10 @@ The command will:
 
 ### Delete Configuration
 
-To completely remove all `clauth` configurations, including the AWS profile and SSO tokens, use the `delete` command:
+To completely remove all `clauth` configurations, including the AWS profile and SSO tokens, run:
 
 ```bash
-clauth delete
+clauth config delete
 ```
 
 This command will permanently delete:
@@ -155,7 +155,7 @@ This command will permanently delete:
 
 To skip the confirmation prompt, use the `--yes` or `-y` flag:
 ```bash
-clauth delete --yes
+clauth config delete --yes
 ```
 
 ## Configuration

@@ -30,8 +30,8 @@ clauth
 - Works with **AWS SSO** and **direct AWS keys**
 - **One-time setup** with `clauth init`
 - **Instant launch** with `clauth` on subsequent runs
-- **Model discovery & switching** with `clauth model switch`—no more manual environment variables!
-- **Simple config management** (`clauth config show`, `clauth delete`)
+- **Model discovery & switching** with `clauth model switch` (or the shortcut `clauth sm`)
+- **Simple config management** (`clauth config show`, `clauth config delete`)
 - **Modern CLI UI** featuring banners, cards, and spinners for each step
 
 ![CLAUTH init wizard](assets/images/clauth-init.png)

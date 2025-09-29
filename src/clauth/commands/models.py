@@ -14,7 +14,7 @@ from clauth.ui import render_card, render_status, console, Spinner
 
 model_app = typer.Typer(
     name="model",
-    help="Manage and switch between Bedrock models.",
+    help="Manage and switch between Bedrock models. Tip: use `clauth sm` to switch quickly.",
     no_args_is_help=True,
 )
 
