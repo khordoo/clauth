@@ -14,4 +14,5 @@ wheels/
 TASKS.md
 CLaude.md
 AGENTS.md
-agents/
+plans.md
+.agents/
