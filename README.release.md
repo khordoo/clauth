@@ -1,5 +1,9 @@
 # CLAUTH
 
+[![PyPI Version](https://img.shields.io/pypi/v/clauth.svg)](https://pypi.org/project/clauth/)
+[![License](https://img.shields.io/pypi/l/clauth.svg)](https://github.com/khordoo/clauth/blob/main/LICENSE)
+[![CI](https://img.shields.io/github/actions/workflow/status/khordoo/clauth/ci.yml?branch=main)](https://github.com/khordoo/clauth/actions/workflows/ci.yml)
+
 **Claude + AWS SSO helper for Bedrock**
 
 A simple CLI tool to launch Claude Code with AWS Bedrock authentication. Supports **AWS SSO** and **direct AWS keys**.
