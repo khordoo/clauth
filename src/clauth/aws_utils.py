@@ -19,6 +19,7 @@ import typer
 import subprocess
 import boto3
 from rich.console import Console
+from clauth.ui import render_status
 from botocore.config import Config
 from botocore.exceptions import (
     NoCredentialsError,
@@ -42,13 +43,6 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
     Returns:
         bool: True if setup successful, False otherwise
     """
-    typer.secho("Setting up IAM user authentication...", fg=typer.colors.BLUE)
-    typer.echo("You'll need your AWS Access Key ID and Secret Access Key.")
-    typer.echo(
-        "Get these from: AWS Console → IAM → Users → [Your User] → Security credentials"
-    )
-    typer.echo()
-
     try:
         # Set the region first, so it's the default in the interactive prompt
         subprocess.run(
@@ -85,26 +79,27 @@ def setup_iam_user_auth(profile: str, region: str) -> bool:
                     with open(aws_config_file, "w") as f:
                         config_parser.write(f)
         except Exception as e:
-            console.print(
-                f"[yellow]Warning: Could not clean SSO settings from AWS config: {e}[/yellow]"
+            render_status(
+                f"Warning: Could not clean SSO settings from AWS config: {e}",
+                level="warning",
             )
 
         # Verify that the credentials are valid
         if not user_is_authenticated(profile=profile):
-            typer.secho(
-                "❌ IAM authentication failed. Please check your credentials and try again.",
-                fg=typer.colors.RED,
+            render_status(
+                "IAM authentication failed. Please check your credentials and try again.",
+                level="error",
             )
             return False
-
-        typer.secho(
-            f"✅ IAM user authentication configured for profile '{profile}'",
-            fg=typer.colors.GREEN,
+        render_status(
+            f"IAM user authentication configured for profile '{profile}'",
+            level="success",
         )
         return True
     except subprocess.CalledProcessError:
-        typer.secho(
-            "❌ Failed to configure IAM user authentication", fg=typer.colors.RED
+        render_status(
+            "Failed to configure IAM user authentication.",
+            level="error",
         )
         return False
 
@@ -129,7 +124,6 @@ def setup_sso_auth(config, cli_overrides) -> bool:
     }
 
     try:
-        typer.secho("Configuring AWS profile...", fg=typer.colors.BLUE)
         # Setup the basic profile entries
         for arg, value in args.items():
             subprocess.run(
@@ -145,14 +139,6 @@ def setup_sso_auth(config, cli_overrides) -> bool:
                 check=True,
             )
 
-        typer.echo(
-            "Opening the AWS SSO wizard. AWS CLI will prompt for SSO details. To reset the SSO session run `clauth reset --complete`"
-        )
-        typer.secho(
-            "Tip: The SSO Start URL typically looks like: https://d-...awsapps.com/start/",
-            fg=typer.colors.YELLOW,
-        )
-
         subprocess.run(
             ["aws", "configure", "sso", "--profile", config.aws.profile], check=True
         )
@@ -164,8 +150,9 @@ def setup_sso_auth(config, cli_overrides) -> bool:
             or config.aws.sso_start_url
         )
         if existing_sso_start_url:
-            typer.echo(
-                f"Reusing existing SSO Start URL from session '{config.aws.session_name}'"
+            render_status(
+                f"Reusing existing SSO Start URL from session '{config.aws.session_name}'",
+                level="info",
             )
             subprocess.run(
                 [
@@ -179,13 +166,13 @@ def setup_sso_auth(config, cli_overrides) -> bool:
                 ]
             )
         subprocess.run(["aws", "sso", "login", "--profile", config.aws.profile])
-        typer.secho(
+        render_status(
             f"Authentication successful for profile '{config.aws.profile}'.",
-            fg=typer.colors.GREEN,
+            level="success",
         )
         return True
     except subprocess.CalledProcessError:
-        typer.secho("❌ SSO setup failed", fg=typer.colors.RED)
+        render_status("SSO setup failed.", level="error")
         return False
 
 
@@ -204,8 +191,9 @@ def user_is_authenticated(profile: str) -> bool:
         # print(f'User account: {account_id}')
         return True
     except (NoCredentialsError, TokenRetrievalError):
-        print(
-            "No credentials found. Please run 'clauth init' to set up authentication."
+        render_status(
+            "No credentials found. Please run `clauth init` to set up authentication.",
+            level="error",
         )
         return False
     except ClientError as e:
@@ -215,15 +203,16 @@ def user_is_authenticated(profile: str) -> bool:
             "ExpiredToken",
             "InvalidClientTokenId",
         ):
-            print(
-                f"Credentials expired or invalid. Please run 'clauth init' to re-authenticate."
+            render_status(
+                "Credentials expired or invalid. Please run `clauth init` to re-authenticate.",
+                level="error",
             )
             return False
         else:
-            print(f"Error getting token: {e}")
+            render_status(f"Error getting token: {e}", level="error")
             return False
     except Exception as e:
-        print(f"Unexpected error during authentication: {e}")
+        render_status(f"Unexpected error during authentication: {e}", level="error")
         return False
 
 
@@ -276,7 +265,7 @@ def remove_sso_session(session_name: str) -> bool:
         aws_config_file = home / ".aws" / "config"
 
         if not aws_config_file.exists():
-            console.print("[yellow]No AWS config file found.[/yellow]")
+            render_status("No AWS config file found.", level="info")
             return True
 
         # Read the AWS config file
@@ -293,19 +282,22 @@ def remove_sso_session(session_name: str) -> bool:
             with open(aws_config_file, "w") as f:
                 config_parser.write(f)
 
-            console.print(
-                f"[green]SUCCESS: Removed SSO session '{session_name}' from AWS config.[/green]"
+            render_status(
+                f"Removed SSO session '{session_name}' from AWS config.",
+                level="success",
             )
         else:
-            console.print(
-                f"[yellow]SSO session '{session_name}' not found in AWS config.[/yellow]"
+            render_status(
+                f"SSO session '{session_name}' not found in AWS config.",
+                level="info",
             )
 
         return True
 
     except Exception as e:
-        console.print(
-            f"[red]ERROR: Failed to remove SSO session '{session_name}': {e}[/red]"
+        render_status(
+            f"Failed to remove SSO session '{session_name}': {e}",
+            level="error",
         )
         return False
 
@@ -328,7 +320,7 @@ def clear_sso_cache(profile_name: str = None) -> bool:
         aws_cache_dir = home / ".aws" / "sso" / "cache"
 
         if not aws_cache_dir.exists():
-            console.print("[yellow]No SSO cache directory found.[/yellow]")
+            render_status("No SSO cache directory found.", level="info")
             return True
 
         # Clear all SSO cache files
@@ -338,21 +330,23 @@ def clear_sso_cache(profile_name: str = None) -> bool:
                 cache_file.unlink()
                 cache_files_deleted += 1
             except Exception as e:
-                console.print(
-                    f"[yellow]Warning: Could not delete cache file {cache_file.name}: {e}[/yellow]"
+                render_status(
+                    f"Warning: Could not delete cache file {cache_file.name}: {e}",
+                    level="warning",
                 )
 
         if cache_files_deleted > 0:
-            console.print(
-                f"[green]SUCCESS: Cleared {cache_files_deleted} SSO cache files.[/green]"
+            render_status(
+                f"Cleared {cache_files_deleted} SSO cache files.",
+                level="success",
             )
         else:
-            console.print("[yellow]No SSO cache files found to clear.[/yellow]")
+            render_status("No SSO cache files found to clear.", level="info")
 
         return True
 
     except Exception as e:
-        console.print(f"[red]ERROR: Error clearing SSO cache: {e}[/red]")
+        render_status(f"Error clearing SSO cache: {e}", level="error")
         return False
 
 
@@ -373,8 +367,9 @@ def delete_aws_credentials_profile(profile_name: str) -> bool:
         aws_credentials_file = home / ".aws" / "credentials"
 
         if not aws_credentials_file.exists():
-            console.print(
-                "[yellow]No AWS credentials file found to delete profile from.[/yellow]"
+            render_status(
+                "No AWS credentials file found to delete profile from.",
+                level="info",
             )
             return True
 
@@ -385,19 +380,22 @@ def delete_aws_credentials_profile(profile_name: str) -> bool:
             config_parser.remove_section(profile_name)
             with open(aws_credentials_file, "w") as f:
                 config_parser.write(f)
-            console.print(
-                f"[green]SUCCESS: AWS credentials for profile '{profile_name}' deleted successfully.[/green]"
+            render_status(
+                f"AWS credentials for profile '{profile_name}' deleted successfully.",
+                level="success",
             )
         else:
-            console.print(
-                f"[yellow]AWS credentials for profile '{profile_name}' do not exist.[/yellow]"
+            render_status(
+                f"AWS credentials for profile '{profile_name}' do not exist.",
+                level="info",
             )
 
         return True
 
     except Exception as e:
-        console.print(
-            f"[red]ERROR: Unexpected error deleting AWS credentials profile: {e}[/red]"
+        render_status(
+            f"Unexpected error deleting AWS credentials profile: {e}",
+            level="error",
         )
         return False
 
@@ -419,8 +417,9 @@ def delete_aws_profile(profile_name: str) -> bool:
         aws_config_file = home / ".aws" / "config"
 
         if not aws_config_file.exists():
-            console.print(
-                "[yellow]No AWS config file found to delete profile from.[/yellow]"
+            render_status(
+                "No AWS config file found to delete profile from.",
+                level="info",
             )
             return True
 
@@ -432,18 +431,23 @@ def delete_aws_profile(profile_name: str) -> bool:
             config_parser.remove_section(profile_section)
             with open(aws_config_file, "w") as f:
                 config_parser.write(f)
-            console.print(
-                f"[green]SUCCESS: AWS profile '{profile_name}' deleted successfully.[/green]"
+            render_status(
+                f"AWS profile '{profile_name}' deleted successfully.",
+                level="success",
             )
         else:
-            console.print(
-                f"[yellow]AWS profile '{profile_name}' does not exist in config file.[/yellow]"
+            render_status(
+                f"AWS profile '{profile_name}' does not exist in config file.",
+                level="info",
             )
 
         return True
 
     except Exception as e:
-        console.print(f"[red]ERROR: Unexpected error deleting AWS profile: {e}[/red]")
+        render_status(
+            f"Unexpected error deleting AWS profile: {e}",
+            level="error",
+        )
         return False
 
 

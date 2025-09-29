@@ -16,6 +16,7 @@ import typer
 from clauth.config import get_config_manager
 from clauth.aws_utils import user_is_authenticated
 from clauth.helpers import handle_authentication_failure, get_app_path, clear_screen, ExecutableNotFoundError
+from clauth.ui import render_status
 
 
 def launch_claude_cli():
@@ -31,7 +32,7 @@ def launch_claude_cli():
 
     # Check if model settings are configured
     if not config.models.default_model_arn or not config.models.fast_model_arn:
-        typer.secho("Model configuration missing. Run 'clauth init' for full setup.", fg=typer.colors.RED)
+        render_status("Model configuration missing. Run `clauth init` for full setup.", level="error")
         raise typer.Exit(1)
 
     # Set up environment variables
@@ -45,18 +46,18 @@ def launch_claude_cli():
     })
 
     # Launch Claude Code
-    typer.secho("Launching Claude Code with Bedrock configuration...", fg=typer.colors.BLUE)
+    render_status("Launching Claude Code with Bedrock configuration...", level="info")
     try:
         claude_path = get_app_path(config.cli.claude_cli_name)
         clear_screen()
         subprocess.run([claude_path], env=env, check=True)
     except Exception as e:
         if "ExecutableNotFoundError" in str(type(e)):
-            typer.secho(f"Launch failed: {e}", fg=typer.colors.RED)
-            typer.secho("Please install Claude Code CLI and ensure it's in your PATH.", fg=typer.colors.YELLOW)
+            render_status(f"Launch failed: {e}", level="error")
+            render_status("Please install Claude Code CLI and ensure it's in your PATH.", level="warning")
         else:
-            typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+            render_status(f"Configuration error: {e}", level="error")
         raise typer.Exit(1)
     except subprocess.CalledProcessError as e:
-        typer.secho(f"Failed to launch Claude Code. Exit code: {e.returncode}", fg=typer.colors.RED)
+        render_status(f"Failed to launch Claude Code. Exit code: {e.returncode}", level="error")
         raise typer.Exit(1)

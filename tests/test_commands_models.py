@@ -56,8 +56,7 @@ def test_models_list_command_no_models(mocker):
     result = runner.invoke(app, ["model", "list"])
 
     assert result.exit_code == 0
-    # When no models are found, nothing is printed
-    assert result.output.strip() == ""
+    assert "No models found" in result.output
 
 
 def test_models_list_command_authentication_failure(mocker):

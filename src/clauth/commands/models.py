@@ -9,10 +9,8 @@ import typer
 from clauth.config import get_config_manager
 from clauth.aws_utils import user_is_authenticated, list_bedrock_profiles
 from clauth.helpers import handle_authentication_failure
-from rich.console import Console
 from InquirerPy import inquirer, get_style
-
-console = Console()
+from clauth.ui import render_card, render_status, console, Spinner
 
 model_app = typer.Typer(
     name="model",
@@ -43,17 +41,33 @@ def list_models(
         if not handle_authentication_failure(config.aws.profile):
             raise typer.Exit(1)
 
-    with console.status("[bold blue]Fetching available models...") as status:
+    with Spinner("Discovering Bedrock models"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
             provider=config.models.provider_filter,
         )
+
+    if not model_ids:
+        render_status(
+            "No models found for the current profile and region.",
+            level="warning",
+            footer="Check your AWS permissions or choose a different region.",
+        )
+        return
+
+    lines: list[str] = []
     for model_id, model_arn in zip(model_ids, model_arns):
         if show_arn:
-            print(model_id, " --> ", model_arn)
+            lines.append(f"{model_id}\n  {model_arn}")
         else:
-            print(model_id)
+            lines.append(model_id)
+
+    render_card(
+        title="Available models",
+        body="\n".join(lines),
+        footer=f"Found {len(model_ids)} model(s) in {config.aws.region}.",
+    )
 
 
 @model_app.command("switch")
@@ -79,9 +93,9 @@ def switch_models(
 
     # Validate that both flags aren't set
     if default_only and fast_only:
-        typer.secho(
-            "Error: Cannot use both --default-only and --fast-only flags together.",
-            fg=typer.colors.RED,
+        render_status(
+            "Cannot use both --default-only and --fast-only together.",
+            level="error",
         )
         raise typer.Exit(1)
 
@@ -92,20 +106,24 @@ def switch_models(
 
     # Check if models are configured
     if not config.models.default_model or not config.models.fast_model:
-        typer.secho(
-            "Model configuration missing. Run 'clauth init' for initial setup.",
-            fg=typer.colors.RED,
+        render_status(
+            "Model configuration missing. Run `clauth init` first.",
+            level="error",
         )
         raise typer.Exit(1)
 
-    # Show current models
-    console.print("\n[bold cyan]Current Models[/bold cyan]")
-    console.print(f"  Default: [green]{config.models.default_model}[/green]")
-    console.print(f"  Fast: [green]{config.models.fast_model}[/green]")
-    console.print()
+    render_card(
+        title="Current models",
+        body="\n".join(
+            [
+                f"Default: {config.models.default_model}",
+                f"Fast: {config.models.fast_model}",
+            ]
+        ),
+    )
 
     # Discover available models
-    with console.status("[bold blue]Discovering available models...") as status:
+    with Spinner("Finding available models"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
@@ -113,9 +131,10 @@ def switch_models(
         )
 
     if not model_ids:
-        typer.secho(
-            "No models found. Check your AWS permissions and region.",
-            fg=typer.colors.RED,
+        render_status(
+            "No models found for the current profile and region.",
+            level="error",
+            footer="Check AWS permissions or try a different region.",
         )
         raise typer.Exit(1)
 
@@ -131,10 +150,15 @@ def switch_models(
 
     # Interactive model selection
     if not fast_only:
+        render_card(
+            title="Select default model",
+            body="Choose the main model CLAUTH should use for Claude Code.",
+            footer="Controls: ↑/↓ move · Enter select",
+        )
         # Select new default model
         new_default_model = inquirer.select(
             message="Select new default model:",
-            instruction="↑↓ move • Enter select",
+            instruction=None,
             pointer="▶ ",
             amark="✔",
             choices=model_ids,
@@ -146,10 +170,15 @@ def switch_models(
         ).execute()
 
     if not default_only:
+        render_card(
+            title="Select fast model",
+            body="Choose the small/fast model for quick tasks.",
+            footer="Controls: ↑/↓ move · Enter select",
+        )
         # Select new fast model
         new_fast_model = inquirer.select(
             message="Select new small/fast model:",
-            instruction="↑↓ move • Enter select",
+            instruction=None,
             pointer="▶ ",
             amark="✔",
             choices=model_ids,
@@ -165,7 +194,7 @@ def switch_models(
         new_default_model == config.models.default_model
         and new_fast_model == config.models.fast_model
     ):
-        console.print("[yellow]No changes made.[/yellow]")
+        render_status("No changes made.", level="info")
         return
 
     # Update configuration
@@ -177,6 +206,13 @@ def switch_models(
     )
 
     # Show confirmation
-    console.print("\n[bold green]✅ Models updated successfully![/bold green]")
-    console.print(f"  Default: [green]{new_default_model}[/green]")
-    console.print(f"  Fast: [green]{new_fast_model}[/green]")
+    render_card(
+        title="Models updated",
+        body="\n".join(
+            [
+                f"Default: {new_default_model}",
+                f"Fast: {new_fast_model}",
+            ]
+        ),
+        footer="Updates saved to CLAUTH configuration.",
+    )

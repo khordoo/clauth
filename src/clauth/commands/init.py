@@ -23,6 +23,7 @@ from clauth.aws_utils import (
 from rich.console import Console
 from InquirerPy import inquirer
 from InquirerPy import get_style
+from clauth.ui import render_card, render_status, Spinner, WizardScreen
 
 app = typer.Typer()
 console = Console()
@@ -32,29 +33,56 @@ env = os.environ.copy()
 def _handle_authentication(config, cli_overrides):
     """Handles the logic for AWS authentication."""
     auth_method = choose_auth_method()
-    typer.echo()
 
     if not prompt_for_region_if_needed(config, cli_overrides):
         raise typer.Exit(1)
 
     if auth_method == "skip":
         if not aws.user_is_authenticated(profile=config.aws.profile):
-            typer.secho(
-                "❌ No valid authentication found. Please choose an authentication method.",
-                fg=typer.colors.RED,
+            render_status(
+                "No valid authentication found. Please choose an authentication method.",
+                level="error",
             )
             raise typer.Exit(1)
-        typer.secho(
-            f"✅ Already authenticated with AWS profile '{config.aws.profile}'",
-            fg=typer.colors.GREEN,
-        )
-        typer.echo("Skipping credential setup...")
+        summary = {
+            "message": f"Authentication: existing AWS profile '{config.aws.profile}' · Region: {config.aws.region}",
+            "level": "success",
+        }
     elif auth_method == "iam":
+        render_card(
+            title="AWS credentials",
+            body="Enter your AWS Access Key and Secret Key for CLAUTH.",
+            footer="Get from: AWS Console → IAM → Users → your user → Security credentials",
+        )
         if not setup_iam_user_auth(config.aws.profile, config.aws.region):
             raise typer.Exit(1)
+        summary = {
+            "message": f"Authentication: IAM access keys for '{config.aws.profile}' · Region: {config.aws.region}",
+            "level": "success",
+        }
     elif auth_method == "sso":
+        render_card(
+            title="Step 2 of 3 · AWS SSO configuration",
+            body="CLAUTH will use AWS CLI to open the SSO wizard. Follow the prompts to complete authentication.",
+            footer="[Delete configuration: clauth delete -y]\nTip: SSO Start URL usually looks like: https://d-xxxxxx.awsapps.com/start/",
+        )
+
         if not setup_sso_auth(config, cli_overrides):
             raise typer.Exit(1)
+        summary = {
+            "message": (
+                f"Authentication: SSO session '{config.aws.session_name}' "
+                f"· Profile: {config.aws.profile} · Region: {config.aws.region}"
+            ),
+            "level": "success",
+        }
+    else:  # pragma: no cover - defensive guard
+        summary = {
+            "message": "Authentication method completed",
+            "level": "success",
+        }
+
+    return summary
 
 
 def _launch_claude_cli(config, env):
@@ -64,14 +92,14 @@ def _launch_claude_cli(config, env):
         clear_screen()
         subprocess.run([claude_path], env=env, check=True)
     except ExecutableNotFoundError as e:
-        typer.secho(f"Setup failed: {e}", fg=typer.colors.RED)
-        typer.secho(
+        render_status(f"Setup failed: {e}", level="error")
+        render_status(
             "Please install Claude Code CLI and ensure it's in your PATH.",
-            fg=typer.colors.YELLOW,
+            level="warning",
         )
         raise typer.Exit(1)
     except ValueError as e:
-        typer.secho(f"Configuration error: {e}", fg=typer.colors.RED)
+        render_status(f"Configuration error: {e}", level="error")
         raise typer.Exit(1)
 
 
@@ -79,9 +107,16 @@ def _handle_model_selection(config, config_manager, console):
     """Handles the logic for selecting Bedrock models."""
     # Check if we have existing model configuration
     if config.models.default_model_arn and config.models.fast_model_arn:
-        typer.echo("Found existing model configuration:")
-        typer.echo(f"  Default model: {config.models.default_model}")
-        typer.echo(f"  Small/Fast model: {config.models.fast_model}")
+        render_card(
+            title="Existing model configuration",
+            body="\n".join(
+                [
+                    f"Default: {config.models.default_model}",
+                    f"Fast: {config.models.fast_model}",
+                ]
+            ),
+            footer="Select `No` below to choose different models.",
+        )
 
         # Get custom style from config manager
         custom_style = get_style(config_manager.get_custom_style())
@@ -99,11 +134,15 @@ def _handle_model_selection(config, config_manager, console):
                 model_id_default: config.models.default_model_arn,
                 model_id_fast: config.models.fast_model_arn,
             }
-            typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
+            render_status(
+                "Models unchanged",
+                level="success",
+                footer=f"Default: {model_id_default} · Fast: {model_id_fast}",
+            )
             return model_id_default, model_id_fast, model_map
-    
+
     # No existing configuration or user chose not to use it, do full model discovery
-    with console.status("[bold blue]Discovering available models...") as status:
+    with Spinner("Discovering available models"):
         model_ids, model_arns = aws.list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
@@ -115,7 +154,6 @@ def _handle_model_selection(config, config_manager, console):
 
     model_id_default = inquirer.select(
         message="Select your [default] model:",
-        instruction="↑↓ move • Enter select",
         pointer="▶ ",
         amark="✔",
         choices=model_ids,
@@ -124,11 +162,11 @@ def _handle_model_selection(config, config_manager, console):
         else (model_ids[0] if model_ids else None),
         style=custom_style,
         max_height="100%",
+        instruction=None,
     ).execute()
 
     model_id_fast = inquirer.select(
         message="Select your [small/fast] model (you can choose the same as default):",
-        instruction="↑↓ move • Enter select",
         pointer="▶ ",
         amark="✔",
         choices=model_ids,
@@ -137,6 +175,7 @@ def _handle_model_selection(config, config_manager, console):
         else (model_ids[-1] if model_ids else None),
         style=custom_style,
         max_height="100%",
+        instruction=None,
     ).execute()
 
     model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
@@ -235,22 +274,37 @@ def init_command(
     if auto_start is not None:
         config.cli.auto_start = auto_start
 
-    show_welcome_logo(console=console)
+    wizard = WizardScreen(banner=lambda: show_welcome_logo(console=console))
 
     try:
-        typer.secho(
-            "Step 1/3 — Configuring AWS authentication...", fg=typer.colors.BLUE
+        with wizard.step(
+            "Step 1 of 3 · Configure AWS authentication",
+            card={
+                "title": "Authentication",
+                "body": "Choose how CLAUTH should authenticate with AWS Bedrock.",
+                "footer": "Recommended: IAM Identity Center (SSO) for team accounts. Controls: ↑/↓ move · Enter select",
+            },
+        ):
+            auth_summary = _handle_authentication(config, cli_overrides)
+        wizard.add_summary_entry(auth_summary)
+
+        with wizard.step(
+            "Step 2 of 3 · Select Bedrock models",
+            card={
+                "title": "Model selection",
+                "body": "Pick your default and fast Bedrock models. You can reuse existing choices.",
+                "footer": "Controls: ↑/↓ move · Enter select",
+            },
+        ):
+            model_id_default, model_id_fast, model_map = _handle_model_selection(
+                config, config_manager, console
+            )
+
+        wizard.add_summary(
+            "Models configured",
+            level="success",
+            footer=f"Default: {model_id_default} · Fast: {model_id_fast}",
         )
-        typer.echo()
-
-        _handle_authentication(config, cli_overrides)
-
-        typer.secho("Step 2/3 — Configuring models...", fg=typer.colors.BLUE)
-        
-        model_id_default, model_id_fast, model_map = _handle_model_selection(config, config_manager, console)
-
-        typer.echo(f"Default model: {model_id_default}")
-        typer.echo(f"Small/Fast model: {model_id_fast}")
 
         env.update(
             {
@@ -262,19 +316,22 @@ def init_command(
             }
         )
 
-        typer.echo(
-            f"default model: {model_id_default}\n small/fast model: {model_id_fast}\n"
-        )
+        wizard.render(active_message="Step 3 of 3 · Finalize setup")
 
         if config.cli.auto_start:
-            typer.secho("Setup complete ✅", fg=typer.colors.GREEN)
-            typer.secho("Step 3/3 — Launching Claude Code...", fg=typer.colors.BLUE)
+            wizard.add_summary(
+                "Auto-start enabled",
+                level="success",
+                footer="Launching Claude Code with your configuration",
+            )
             _launch_claude_cli(config, env)
         else:
-            typer.secho("Step 3/3 — Setup complete.", fg=typer.colors.GREEN)
-            typer.echo("Run the Claude Code CLI when you're ready: ", nl=False)
-            typer.secho(config.cli.claude_cli_name, bold=True)
+            wizard.add_summary(
+                "Setup complete",
+                level="success",
+                footer=f"Run `{config.cli.claude_cli_name}` when you're ready.",
+            )
 
     except subprocess.CalledProcessError as e:
-        typer.secho(f"Setup failed. Exit code: {e.returncode}", fg=typer.colors.RED)
-        exit(f"Failed to setup. Error Code: {e.returncode}")
+        render_status(f"Setup failed. Exit code: {e.returncode}", level="error")
+        raise typer.Exit(1)

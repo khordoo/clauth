@@ -15,6 +15,7 @@ CLAUTH streamlines the complex process of configuring AWS SSO, discovering Bedro
 - **Interactive Model Selection** - Choose default and fast models through user-friendly menus
 - **Auto-launch Claude Code** - Seamlessly launches Claude Code CLI with proper configuration
 - **Model Management** - List and manage available Bedrock models
+- **Polished CLI UI** - Themed banners, cards, and progress spinners keep steps focused and easy to follow
 
 ## Prerequisites
 
@@ -71,6 +72,10 @@ This command will:
 3. Discover available Bedrock models
 4. Let you select default and fast models
 5. Launch Claude Code CLI with proper environment
+
+### Sample CLI Experience
+
+![CLAUTH init wizard](assets/images/clauth-init.png)
 
 ### Command Options
 

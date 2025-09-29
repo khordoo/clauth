@@ -18,9 +18,8 @@ from clauth.config import get_config_manager
 from clauth.aws_utils import list_bedrock_profiles
 from InquirerPy import inquirer
 from rich.console import Console
-from pyfiglet import Figlet
-from textwrap import dedent
 from InquirerPy import get_style
+from clauth.ui import render_banner, render_card, render_status, Spinner
 
 console = Console()
 
@@ -36,28 +35,18 @@ def clear_screen():
     os.system("cls" if os.name == "nt" else "clear")
 
 
-def show_welcome_logo(console: Console) -> None:
-    """
-    Display the CLAUTH welcome logo.
+def show_welcome_logo(console: Console | None = None) -> None:
+    """Display the CLAUTH welcome banner."""
 
-    Args:
-        console: Rich console instance for styled output
-    """
-    f = Figlet(font="slant")
-    logo = f.renderText("CLAUTH")
-    console.print(logo, style="bold cyan")
-
-    console.print(
-        dedent("""
-        [bold]Welcome to CLAUTH[/bold]
-        Let’s set up your environment for Claude Code on Amazon Bedrock.
-
-        Prerequisites:
-          • AWS CLI v2
-          • Claude Code CLI
-
-        Tip: run [bold]clauth init --help[/bold] to view options.
-    """).strip()
+    _ = console  # Maintained for backwards compatibility; render_banner owns output.
+    render_banner(
+        title="CLAUTH",
+        subtitle="Quick setup for Claude Code with AWS Bedrock (SSO or IAM)",
+        bullets=[
+            "Requires AWS CLI v2",
+            "Requires Claude Code CLI",
+            "Tip: run `clauth init --help` to view options",
+        ],
     )
 
 
@@ -168,28 +157,25 @@ def handle_authentication_failure(profile: str) -> bool:
         bool: True if successfully authenticated, False otherwise
     """
     if is_sso_profile(profile):
-        typer.secho(
-            "SSO token expired. Attempting to re-authenticate...",
-            fg=typer.colors.YELLOW,
-        )
+        render_status("SSO token expired. Attempting to re-authenticate...", level="warning")
         try:
             subprocess.run(["aws", "sso", "login", "--profile", profile], check=True)
-            typer.secho(
+            render_status(
                 f"Successfully re-authenticated with profile '{profile}'",
-                fg=typer.colors.GREEN,
+                level="success",
             )
             return True
         except subprocess.CalledProcessError:
-            typer.secho(
-                "SSO login failed. Run 'clauth init' for full setup.",
-                fg=typer.colors.RED,
+            render_status(
+                "SSO login failed. Run `clauth init` for full setup.",
+                level="error",
             )
             return False
     else:
         # Non-SSO profile - direct to init
-        typer.secho(
-            "Authentication required. Please run 'clauth init' to set up authentication.",
-            fg=typer.colors.RED,
+        render_status(
+            "Authentication required. Run `clauth init` to set up credentials.",
+            level="error",
         )
         return False
 
@@ -197,9 +183,11 @@ def handle_authentication_failure(profile: str) -> bool:
 def prompt_for_region_if_needed(config, cli_overrides):
     """Prompt user for AWS region if not provided."""
     if not cli_overrides.get("region"):
-        console.print("\n[bold]AWS Region Selection[/bold]")
-        console.print("Please select your preferred AWS region.")
-        console.print("This will be used for default AWS services.\n")
+        render_card(
+            title="AWS region",
+            body="Select the region CLAUTH should use by default.",
+            footer="Controls: ↑/↓ move · Enter select",
+        )
 
         custom_region_option = "Other (enter custom region)"
         region_options = [
@@ -214,7 +202,7 @@ def prompt_for_region_if_needed(config, cli_overrides):
         ]
 
         selected_option = inquirer.select(
-            message="Select your AWS region:",
+            message="Region:",
             instruction="↑↓ move • Enter select",
             choices=region_options,
             default=config.aws.region
@@ -225,9 +213,9 @@ def prompt_for_region_if_needed(config, cli_overrides):
         ).execute()
 
         if selected_option == custom_region_option:
-            custom_region = typer.prompt("AWS Region")
+            custom_region = typer.prompt("AWS region")
             if not custom_region or not custom_region.replace("-", "").isalnum():
-                typer.secho("Error: Invalid region format.", fg=typer.colors.RED)
+                render_status("Invalid region format.", level="error")
                 return False
             selected_region = custom_region
         else:
@@ -236,7 +224,6 @@ def prompt_for_region_if_needed(config, cli_overrides):
         config.aws.region = selected_region
         get_config_manager()._config = config
         get_config_manager().save()
-        console.print(f"[green]✓ Region set to: {selected_region}[/green]\n")
     return True
 
 
@@ -254,7 +241,7 @@ def validate_model_id(id: str):
         typer.Exit: If model ID is not found in available models
     """
     config = get_config_manager().load()
-    with console.status("[bold blue]Validating model ID...") as status:
+    with Spinner("Validating model ID"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,

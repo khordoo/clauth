@@ -32,6 +32,9 @@ clauth
 - **Instant launch** with `clauth` on subsequent runs
 - **Model discovery & switching** with `clauth model switch`—no more manual environment variables!
 - **Simple config management** (`clauth config show`, `clauth delete`)
+- **Modern CLI UI** featuring banners, cards, and spinners for each step
+
+![CLAUTH init wizard](assets/images/clauth-init.png)
 
 ---
 ## 📋 Requirements
