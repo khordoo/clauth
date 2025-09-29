@@ -96,9 +96,16 @@ def _handle_model_selection(config, config_manager, console):
     """Handles the logic for selecting Bedrock models."""
     # Check if we have existing model configuration
     if config.models.default_model_arn and config.models.fast_model_arn:
-        typer.echo("Found existing model configuration:")
-        typer.echo(f"  Default model: {config.models.default_model}")
-        typer.echo(f"  Small/Fast model: {config.models.fast_model}")
+        render_card(
+            title="Existing model configuration",
+            body="\n".join(
+                [
+                    f"Default: {config.models.default_model}",
+                    f"Fast: {config.models.fast_model}",
+                ]
+            ),
+            footer="Select `No` below to choose different models.",
+        )
 
         # Get custom style from config manager
         custom_style = get_style(config_manager.get_custom_style())
@@ -116,9 +123,13 @@ def _handle_model_selection(config, config_manager, console):
                 model_id_default: config.models.default_model_arn,
                 model_id_fast: config.models.fast_model_arn,
             }
-            typer.echo(f"Using saved models: {model_id_default}, {model_id_fast}")
+            render_status(
+                "Models unchanged",
+                level="success",
+                footer=f"Default: {model_id_default} · Fast: {model_id_fast}",
+            )
             return model_id_default, model_id_fast, model_map
-    
+
     # No existing configuration or user chose not to use it, do full model discovery
     with console.status("[bold blue]Discovering available models...") as status:
         model_ids, model_arns = aws.list_bedrock_profiles(
@@ -132,7 +143,6 @@ def _handle_model_selection(config, config_manager, console):
 
     model_id_default = inquirer.select(
         message="Select your [default] model:",
-        instruction="↑↓ move • Enter select",
         pointer="▶ ",
         amark="✔",
         choices=model_ids,
@@ -141,11 +151,11 @@ def _handle_model_selection(config, config_manager, console):
         else (model_ids[0] if model_ids else None),
         style=custom_style,
         max_height="100%",
+        instruction=None,
     ).execute()
 
     model_id_fast = inquirer.select(
         message="Select your [small/fast] model (you can choose the same as default):",
-        instruction="↑↓ move • Enter select",
         pointer="▶ ",
         amark="✔",
         choices=model_ids,
@@ -154,6 +164,7 @@ def _handle_model_selection(config, config_manager, console):
         else (model_ids[-1] if model_ids else None),
         style=custom_style,
         max_height="100%",
+        instruction=None,
     ).execute()
 
     model_map = {id: arn for id, arn in zip(model_ids, model_arns)}
@@ -281,7 +292,7 @@ def init_command(
             instruction={
                 "title": "Authentication",
                 "body": "Choose how CLAUTH should authenticate with AWS Bedrock.",
-                "footer": "Recommended: IAM Identity Center (SSO) for team accounts.",
+                "footer": "Recommended: IAM Identity Center (SSO) for team accounts. Controls: ↑/↓ move · Enter select",
             },
         )
 
@@ -293,6 +304,7 @@ def init_command(
             instruction={
                 "title": "Model selection",
                 "body": "Pick your default and fast Bedrock models. You can reuse existing choices.",
+                "footer": "Controls: ↑/↓ move · Enter select",
             },
         )
 
