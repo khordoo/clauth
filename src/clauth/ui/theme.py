@@ -16,6 +16,7 @@ class ColorTheme:
     success: str = "#22c55e"
     warning: str = "#facc15"
     error: str = "#f87171"
+    danger: str = "#dc2626"
     border: str = "#6c5ce7"
     dim: str = "#6b7280"
 
@@ -42,7 +43,7 @@ def inquirer_style() -> Dict[str, str]:
     return {
         "questionmark": "bold",
         "instruction": prompt_toolkit_color(style("text_muted")),
-        "answer": "bold",
+        "answer": prompt_toolkit_color(style("success"), bold=True),
         "pointer": prompt_toolkit_color(style("accent_alt")),
         "highlighted": prompt_toolkit_color(style("accent"), bold=True),
         "selected": prompt_toolkit_color(style("accent_alt"), bold=True),

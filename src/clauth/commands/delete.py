@@ -6,7 +6,7 @@ from clauth.aws_utils import (
     clear_sso_cache,
     remove_sso_session,
 )
-from clauth.ui import render_card, render_status, console
+from clauth.ui import render_card, render_status, console, style
 
 
 def delete(
@@ -38,7 +38,7 @@ def delete(
             ]
         ),
         footer="This operation cannot be undone.",
-        border_style= "red",
+        border_style=style("danger"),
     )
 
     # Confirmation
