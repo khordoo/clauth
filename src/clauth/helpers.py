@@ -224,7 +224,6 @@ def prompt_for_region_if_needed(config, cli_overrides):
         config.aws.region = selected_region
         get_config_manager()._config = config
         get_config_manager().save()
-        console.print(f"[green]✓ Region set to: {selected_region}[/green]\n")
     return True
 
 
