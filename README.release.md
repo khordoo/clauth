@@ -31,7 +31,8 @@ clauth
 …and Claude Code will start with your saved credentials.
 
 <p align="center">
-  <img src="assets/demo/demo.gif" alt="CLAUTH CLI Demo" width="800" />
+  <img src="https://raw.githubusercontent.com/khordoo/clauth/main/assets/demo/demo.gif" alt="CLAUTH CLI Demo" width="800" />
+
 </p>
 
 ---
