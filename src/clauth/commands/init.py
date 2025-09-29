@@ -61,6 +61,12 @@ def _handle_authentication(config, cli_overrides):
             "level": "success",
         }
     elif auth_method == "sso":
+        render_card(
+            title="Step 2 of 3 · AWS SSO configuration",
+            body="CLAUTH will use AWS CLI to open the SSO wizard. Follow the prompts to complete authentication.",
+            footer="[Reset with: clauth reset --complete]\nTip: SSO Start URL usually looks like: https://d-xxxxxx.awsapps.com/start/",
+        )
+
         if not setup_sso_auth(config, cli_overrides):
             raise typer.Exit(1)
         summary = {
