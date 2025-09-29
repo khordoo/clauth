@@ -1,0 +1,32 @@
+name-template: 'v$NEXT_PATCH_VERSION'
+tag-template: 'v$NEXT_PATCH_VERSION'
+change-template: '- $TITLE (#$NUMBER)'
+categories:
+  - title: '🚀 Enhancements'
+    labels:
+      - enhancement
+      - feature
+  - title: '🐛 Bug Fixes'
+    labels:
+      - bug
+      - fix
+  - title: '🧰 Maintenance'
+    labels:
+      - chore
+      - maintenance
+  - title: '📚 Documentation'
+    labels:
+      - docs
+
+change-title-escapes:
+  - "`"
+  - "~"
+  - "@"
+
+include-pre-releases: false
+exclude-labels:
+  - skip-changelog
+
+replacers:
+  - search: '/\s+#(\d+)/g'
+    replace: ' (#$1)'
