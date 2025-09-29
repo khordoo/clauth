@@ -6,7 +6,7 @@ from clauth.aws_utils import (
     clear_sso_cache,
     remove_sso_session,
 )
-from clauth.ui import render_card, render_status, console, style
+from clauth.ui import render_card, render_status, Spinner, style
 
 
 def delete(
@@ -48,48 +48,69 @@ def delete(
             raise typer.Exit(0)
 
     success = True
+    summary_lines: list[str] = []
     render_status("Starting delete operation", level="info")
 
     # Step 1: Delete AWS profile and credentials
-    if delete_aws_profile(profile):
+    with Spinner("Removing AWS profile"):
+        removed_profile = delete_aws_profile(profile)
+    if removed_profile:
         render_status(f"Removed AWS profile '{profile}'", level="success")
+        summary_lines.append(f"AWS profile '{profile}' → removed")
     else:
         render_status(
             f"Failed to remove AWS profile '{profile}'",
             level="error",
         )
         success = False
+        summary_lines.append(f"AWS profile '{profile}' → failed")
 
-    if delete_aws_credentials_profile(profile):
+    with Spinner("Removing AWS credentials profile"):
+        removed_credentials = delete_aws_credentials_profile(profile)
+    if removed_credentials:
         render_status("Removed AWS credentials profile", level="success")
+        summary_lines.append("AWS credentials profile → removed")
     else:
         render_status(
             "Failed to remove AWS credentials profile",
             level="error",
         )
         success = False
+        summary_lines.append("AWS credentials profile → failed")
 
     # Step 2: Clear SSO token cache
-    if clear_sso_cache(profile):
+    with Spinner("Clearing SSO token cache"):
+        cache_cleared = clear_sso_cache(profile)
+    if cache_cleared:
         render_status("Cleared SSO token cache", level="success")
+        summary_lines.append("SSO token cache → cleared")
     else:
         render_status("Failed to clear SSO token cache", level="error")
         success = False
+        summary_lines.append("SSO token cache → failed")
 
     # Step 3: Remove SSO session configuration
-    if remove_sso_session("claude-auth"):
+    with Spinner("Removing CLAUTH SSO sessions"):
+        default_session_removed = remove_sso_session("claude-auth")
+        profile_session_removed = remove_sso_session(config.aws.session_name)
+    if default_session_removed:
         render_status("Removed default CLAUTH SSO session", level="success")
+        summary_lines.append("Default CLAUTH SSO session → removed")
     else:
         render_status(
             "Failed to remove default CLAUTH SSO session",
             level="warning",
         )
         success = False
+        summary_lines.append("Default CLAUTH SSO session → failed")
 
-    if remove_sso_session(config.aws.session_name):
+    if profile_session_removed:
         render_status(
             f"Removed SSO session '{config.aws.session_name}'",
             level="success",
+        )
+        summary_lines.append(
+            f"SSO session '{config.aws.session_name}' → removed"
         )
     else:
         render_status(
@@ -97,30 +118,42 @@ def delete(
             level="warning",
         )
         success = False
+        summary_lines.append(
+            f"SSO session '{config.aws.session_name}' → failed"
+        )
 
     # Step 4: Delete CLAUTH configuration directory
     try:
         import shutil
-        if config_manager.config_dir.exists():
-            shutil.rmtree(config_manager.config_dir)
-            render_status(
-                "Removed CLAUTH configuration directory",
-                level="success",
-                footer=str(config_manager.config_dir),
-            )
-        else:
-            render_status(
-                "Config directory already removed.",
-                level="info",
-            )
+        with Spinner("Deleting CLAUTH configuration directory"):
+            if config_manager.config_dir.exists():
+                shutil.rmtree(config_manager.config_dir)
+                render_status(
+                    "Removed CLAUTH configuration directory",
+                    level="success",
+                    footer=str(config_manager.config_dir),
+                )
+                summary_lines.append("Configuration directory → removed")
+            else:
+                render_status(
+                    "Config directory already removed.",
+                    level="info",
+                )
+                summary_lines.append("Configuration directory → already removed")
     except Exception as e:
         render_status(
             f"Failed to delete CLAUTH configuration: {e}",
             level="error",
         )
         success = False
+        summary_lines.append("Configuration directory → failed")
 
     # Final status
+    render_card(
+        title="Delete summary",
+        body="\n".join(summary_lines),
+    )
+
     if success:
         render_status(
             "Deletion completed successfully.",

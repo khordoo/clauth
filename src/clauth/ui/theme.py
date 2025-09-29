@@ -13,6 +13,7 @@ class ColorTheme:
     text_muted: str = "#9ca3af"
     accent: str = "#6c5ce7"
     accent_alt: str = "#38bdf8"
+    selection: str = "#22d3ee"
     success: str = "#22c55e"
     warning: str = "#facc15"
     error: str = "#f87171"
@@ -43,10 +44,10 @@ def inquirer_style() -> Dict[str, str]:
     return {
         "questionmark": "bold",
         "instruction": prompt_toolkit_color(style("text_muted")),
-        "answer": prompt_toolkit_color(style("success"), bold=True),
-        "pointer": prompt_toolkit_color(style("accent_alt")),
-        "highlighted": prompt_toolkit_color(style("accent"), bold=True),
-        "selected": prompt_toolkit_color(style("accent_alt"), bold=True),
+        "answer": prompt_toolkit_color(style("selection"), bold=True),
+        "pointer": prompt_toolkit_color(style("selection")),
+        "highlighted": prompt_toolkit_color(style("selection"), bold=True),
+        "selected": prompt_toolkit_color(style("selection"), bold=True),
         "separator": prompt_toolkit_color(style("dim")),
         "border": prompt_toolkit_color(style("accent")),
     }
