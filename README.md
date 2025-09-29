@@ -66,16 +66,16 @@ Run the setup wizard to configure everything automatically:
 clauth init
 ```
 
+<p align="center">
+  <img src="assets/demo/demo.gif" alt="CLAUTH CLI Demo" width="800" />
+</p>
+
 This command will:
 1. Configure AWS SSO profile and session
 2. Open AWS SSO wizard for authentication
 3. Discover available Bedrock models
 4. Let you select default and fast models
 5. Launch Claude Code CLI with proper environment
-
-### Sample CLI Experience
-
-![CLAUTH init wizard](assets/images/clauth-init.png)
 
 ### Command Options
 
