@@ -10,7 +10,7 @@ from clauth.config import get_config_manager
 from clauth.aws_utils import user_is_authenticated, list_bedrock_profiles
 from clauth.helpers import handle_authentication_failure
 from InquirerPy import inquirer, get_style
-from clauth.ui import render_card, render_status, console
+from clauth.ui import render_card, render_status, console, Spinner
 
 model_app = typer.Typer(
     name="model",
@@ -41,7 +41,7 @@ def list_models(
         if not handle_authentication_failure(config.aws.profile):
             raise typer.Exit(1)
 
-    with console.status("[bold blue]Discovering Bedrock models..."):
+    with Spinner("Discovering Bedrock models"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
@@ -123,7 +123,7 @@ def switch_models(
     )
 
     # Discover available models
-    with console.status("[bold blue]Discovering available models...") as status:
+    with Spinner("Finding available models"):
         model_ids, model_arns = list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,

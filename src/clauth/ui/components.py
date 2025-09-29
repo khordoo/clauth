@@ -5,6 +5,7 @@ from typing import Iterable, Optional
 from rich import box
 from rich.align import Align
 from rich.console import Console, Group
+from rich.status import Status
 from rich.measure import Measurement
 from rich.panel import Panel
 from rich.rule import Rule
@@ -132,3 +133,24 @@ def render_status(
 def measurement() -> Measurement:
     """Expose measurement helper for layout-aware callers."""
     return Measurement.get(console, console.options, " ")
+
+
+class Spinner:
+    """Context manager that shows a transient spinner with themed styling."""
+
+    def __init__(self, message: str, *, spinner: str = "dots"):
+        self.message = message
+        self.spinner = spinner
+        self._status: Status | None = None
+
+    def __enter__(self):
+        self._status = console.status(
+            f"[bold {style('accent_alt')}] {self.message}",
+            spinner=self.spinner,
+            spinner_style=style("accent"),
+        )
+        return self._status.__enter__()
+
+    def __exit__(self, exc_type, exc_val, exc_tb):
+        assert self._status is not None
+        return self._status.__exit__(exc_type, exc_val, exc_tb)
