@@ -23,7 +23,7 @@ from clauth.aws_utils import (
 from rich.console import Console
 from InquirerPy import inquirer
 from InquirerPy import get_style
-from clauth.ui import render_card, render_status
+from clauth.ui import render_card, render_status, Spinner
 
 app = typer.Typer()
 console = Console()
@@ -142,7 +142,7 @@ def _handle_model_selection(config, config_manager, console):
             return model_id_default, model_id_fast, model_map
 
     # No existing configuration or user chose not to use it, do full model discovery
-    with console.status("[bold blue]Discovering available models...") as status:
+    with Spinner("Discovering available models"):
         model_ids, model_arns = aws.list_bedrock_profiles(
             profile=config.aws.profile,
             region=config.aws.region,
