@@ -1,17 +1,21 @@
 # CLAUTH
+
 **Claude + AWS SSO helper for Bedrock**
 
 A simple CLI tool to launch Claude Code with AWS Bedrock authentication. Supports **AWS SSO** and **direct AWS keys**.
 
 ---
+
 ## 🚀 Quick Start
 
 Install from PyPI:
+
 ```bash
 pip install clauth
 ```
 
 Run the setup wizard:
+
 ```bash
 clauth init
 ```
@@ -19,12 +23,19 @@ clauth init
 👉 This will configure AWS SSO (or keys), discover Bedrock models, and launch Claude Code instantly.
 
 On later runs, just use:
+
 ```bash
 clauth
 ```
+
 …and Claude Code will start with your saved credentials.
 
+<p align="center">
+  <img src="assets/demo/demo.gif" alt="CLAUTH CLI Demo" width="800" />
+</p>
+
 ---
+
 ## ✨ Features
 
 - Works with **AWS SSO** and **direct AWS keys**
@@ -37,6 +48,7 @@ clauth
 ![CLAUTH init wizard](assets/images/clauth-init.png)
 
 ---
+
 ## 📋 Requirements
 
 - Python 3.10+
@@ -45,6 +57,7 @@ clauth
 - Access to AWS Bedrock
 
 ---
+
 ## 📖 More Documentation
 
 - [Full usage guide](https://github.com/khordoo/clauth#usage)
@@ -52,6 +65,7 @@ clauth
 - [Troubleshooting](https://github.com/khordoo/clauth#troubleshooting)
 
 ---
+
 ## License
 
 MIT License – see [LICENSE](LICENSE).
