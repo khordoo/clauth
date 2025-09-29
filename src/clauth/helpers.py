@@ -186,9 +186,8 @@ def handle_authentication_failure(profile: str) -> bool:
 def prompt_for_region_if_needed(config, cli_overrides):
     """Prompt user for AWS region if not provided."""
     if not cli_overrides.get("region"):
-        console.print("\n[bold]AWS Region Selection[/bold]")
-        console.print("Please select your preferred AWS region.")
-        console.print("This will be used for default AWS services.\n")
+        console.print("\n[bold]AWS Region[/bold]")
+        console.print("Select the region CLAUTH should use by default.\n")
 
         custom_region_option = "Other (enter custom region)"
         region_options = [
@@ -203,7 +202,7 @@ def prompt_for_region_if_needed(config, cli_overrides):
         ]
 
         selected_option = inquirer.select(
-            message="Select your AWS region:",
+            message="Region:",
             instruction="↑↓ move • Enter select",
             choices=region_options,
             default=config.aws.region
