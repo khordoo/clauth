@@ -19,7 +19,7 @@ from clauth.aws_utils import list_bedrock_profiles
 from InquirerPy import inquirer
 from rich.console import Console
 from InquirerPy import get_style
-from clauth.ui import render_banner
+from clauth.ui import render_banner, render_card, render_status
 
 console = Console()
 
@@ -157,28 +157,25 @@ def handle_authentication_failure(profile: str) -> bool:
         bool: True if successfully authenticated, False otherwise
     """
     if is_sso_profile(profile):
-        typer.secho(
-            "SSO token expired. Attempting to re-authenticate...",
-            fg=typer.colors.YELLOW,
-        )
+        render_status("SSO token expired. Attempting to re-authenticate...", level="warning")
         try:
             subprocess.run(["aws", "sso", "login", "--profile", profile], check=True)
-            typer.secho(
+            render_status(
                 f"Successfully re-authenticated with profile '{profile}'",
-                fg=typer.colors.GREEN,
+                level="success",
             )
             return True
         except subprocess.CalledProcessError:
-            typer.secho(
-                "SSO login failed. Run 'clauth init' for full setup.",
-                fg=typer.colors.RED,
+            render_status(
+                "SSO login failed. Run `clauth init` for full setup.",
+                level="error",
             )
             return False
     else:
         # Non-SSO profile - direct to init
-        typer.secho(
-            "Authentication required. Please run 'clauth init' to set up authentication.",
-            fg=typer.colors.RED,
+        render_status(
+            "Authentication required. Run `clauth init` to set up credentials.",
+            level="error",
         )
         return False
 
@@ -186,8 +183,11 @@ def handle_authentication_failure(profile: str) -> bool:
 def prompt_for_region_if_needed(config, cli_overrides):
     """Prompt user for AWS region if not provided."""
     if not cli_overrides.get("region"):
-        console.print("\n[bold]AWS Region[/bold]")
-        console.print("Select the region CLAUTH should use by default.\n")
+        render_card(
+            title="AWS region",
+            body="Select the region CLAUTH should use by default.",
+            footer="Controls: ↑/↓ move · Enter select",
+        )
 
         custom_region_option = "Other (enter custom region)"
         region_options = [
@@ -213,9 +213,9 @@ def prompt_for_region_if_needed(config, cli_overrides):
         ).execute()
 
         if selected_option == custom_region_option:
-            custom_region = typer.prompt("AWS Region")
+            custom_region = typer.prompt("AWS region")
             if not custom_region or not custom_region.replace("-", "").isalnum():
-                typer.secho("Error: Invalid region format.", fg=typer.colors.RED)
+                render_status("Invalid region format.", level="error")
                 return False
             selected_region = custom_region
         else:
