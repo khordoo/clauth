@@ -123,11 +123,18 @@ def test_handle_authentication_failure_sso_success(mocker):
     mock_is_sso = mocker.patch("clauth.helpers.is_sso_profile", return_value=True)
     mock_run = mocker.patch("subprocess.run")
     mock_run.return_value.returncode = 0
-    mock_secho = mocker.patch("typer.secho")
+    mock_status = mocker.patch("clauth.helpers.render_status")
 
     result = handle_authentication_failure("test-profile")
     assert result is True
-    mock_secho.assert_any_call("Successfully re-authenticated with profile 'test-profile'", fg="green")
+    mock_status.assert_any_call(
+        "SSO token expired. Attempting to re-authenticate...",
+        level="warning",
+    )
+    mock_status.assert_any_call(
+        "Successfully re-authenticated with profile 'test-profile'",
+        level="success",
+    )
 
 
 def test_handle_authentication_failure_sso_failure(mocker):
@@ -135,23 +142,30 @@ def test_handle_authentication_failure_sso_failure(mocker):
     mock_is_sso = mocker.patch("clauth.helpers.is_sso_profile", return_value=True)
     mock_run = mocker.patch("subprocess.run")
     mock_run.side_effect = subprocess.CalledProcessError(1, "aws sso login")
-    mock_secho = mocker.patch("typer.secho")
+    mock_status = mocker.patch("clauth.helpers.render_status")
 
     result = handle_authentication_failure("test-profile")
     assert result is False
-    mock_secho.assert_any_call("SSO login failed. Run 'clauth init' for full setup.", fg="red")
+    mock_status.assert_any_call(
+        "SSO token expired. Attempting to re-authenticate...",
+        level="warning",
+    )
+    mock_status.assert_any_call(
+        "SSO login failed. Run `clauth init` for full setup.",
+        level="error",
+    )
 
 
 def test_handle_authentication_failure_non_sso(mocker):
     """Test handle_authentication_failure with non-SSO profile."""
     mock_is_sso = mocker.patch("clauth.helpers.is_sso_profile", return_value=False)
-    mock_secho = mocker.patch("typer.secho")
+    mock_status = mocker.patch("clauth.helpers.render_status")
 
     result = handle_authentication_failure("test-profile")
     assert result is False
-    mock_secho.assert_called_with(
-        "Authentication required. Please run 'clauth init' to set up authentication.",
-        fg="red"
+    mock_status.assert_called_with(
+        "Authentication required. Run `clauth init` to set up credentials.",
+        level="error",
     )
 
 
