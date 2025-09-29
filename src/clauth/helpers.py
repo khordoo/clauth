@@ -40,8 +40,8 @@ def show_welcome_logo(console: Console | None = None) -> None:
 
     _ = console  # Maintained for backwards compatibility; render_banner owns output.
     render_banner(
-        title="Welcome to CLAUTH",
-        subtitle="Configure Claude Code with AWS Bedrock in minutes.",
+        title="CLAUTH",
+        subtitle="Quick setup for Claude Code with AWS Bedrock (SSO or IAM)",
         bullets=[
             "Requires AWS CLI v2",
             "Requires Claude Code CLI",

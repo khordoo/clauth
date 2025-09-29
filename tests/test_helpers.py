@@ -38,8 +38,8 @@ def test_show_welcome_logo(capsys):
     show_welcome_logo(console)
 
     output = capsys.readouterr().out
-    assert "Welcome to CLAUTH" in output
-    assert "Configure Claude Code with AWS Bedrock in minutes." in output
+    assert "CLAUTH" in output
+    assert "Quick setup for Claude Code with AWS Bedrock (SSO or IAM)" in output
     assert "Requires AWS CLI v2" in output
 
 
