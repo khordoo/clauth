@@ -2,6 +2,16 @@
 
 All notable changes to this project will be documented in this file.
 
+## [0.1.6] - 2025-09-30
+### Added
+- PyPI/GitHub badge block and project logo to the README pair for a more polished landing page.
+
+### Changed
+- TestPyPI workflow now rewrites builds to `dev` versions using the GitHub run number and skips re-uploading existing artifacts.
+
+### Fixed
+- Release Drafter configuration now validates (string escapes and default template), allowing the release workflow to complete successfully.
+
 ## [0.1.5] - 2025-09-29
 ### Added
 - Automated release publishing: CI now drafts GitHub releases and publishes notes when a `v*` tag is pushed.
@@ -49,10 +59,10 @@ All notable changes to this project will be documented in this file.
 - Initial public release with `clauth init`, `clauth model`, and configuration commands.
 - Automated AWS SSO setup, Bedrock model discovery, and Claude Code launch integration.
 
+[0.1.6]: https://github.com/khordoo/clauth/releases/tag/v0.1.6
 [0.1.5]: https://github.com/khordoo/clauth/releases/tag/v0.1.5
 [0.1.4]: https://github.com/khordoo/clauth/releases/tag/v0.1.4
 [0.1.3]: https://github.com/khordoo/clauth/releases/tag/v0.1.3
 [0.1.2]: https://github.com/khordoo/clauth/releases/tag/v0.1.2
 [0.1.1]: https://github.com/khordoo/clauth/releases/tag/v0.1.1
 [0.1.0]: https://github.com/khordoo/clauth/releases/tag/v0.1.0
-
