@@ -23,7 +23,7 @@ from clauth.aws_utils import (
 from rich.console import Console
 from InquirerPy import inquirer
 from InquirerPy import get_style
-from clauth.ui import render_card, render_status, Spinner
+from clauth.ui import render_card, render_status, Spinner, WizardScreen
 
 app = typer.Typer()
 console = Console()
@@ -274,63 +274,36 @@ def init_command(
     if auto_start is not None:
         config.cli.auto_start = auto_start
 
-    summary_entries: list[dict[str, str]] = []
-
-    def redraw(
-        active_message: str | None = None, instruction: dict | None = None
-    ) -> None:
-        clear_screen()
-        show_welcome_logo(console=console)
-
-        for entry in summary_entries:
-            render_status(
-                entry.get("message", ""),
-                level=entry.get("level", "info"),
-                footer=entry.get("footer"),
-            )
-
-        if active_message:
-            render_status(active_message, level="info")
-
-        if instruction:
-            render_card(
-                title=instruction.get("title"),
-                body=instruction.get("body", ""),
-                footer=instruction.get("footer"),
-            )
+    wizard = WizardScreen(banner=lambda: show_welcome_logo(console=console))
 
     try:
-        redraw(
-            active_message="Step 1 of 3 · Configure AWS authentication",
-            instruction={
+        with wizard.step(
+            "Step 1 of 3 · Configure AWS authentication",
+            card={
                 "title": "Authentication",
                 "body": "Choose how CLAUTH should authenticate with AWS Bedrock.",
                 "footer": "Recommended: IAM Identity Center (SSO) for team accounts. Controls: ↑/↓ move · Enter select",
             },
-        )
+        ):
+            auth_summary = _handle_authentication(config, cli_overrides)
+        wizard.add_summary_entry(auth_summary)
 
-        auth_summary = _handle_authentication(config, cli_overrides)
-        summary_entries.append(auth_summary)
-
-        redraw(
-            active_message="Step 2 of 3 · Select Bedrock models",
-            instruction={
+        with wizard.step(
+            "Step 2 of 3 · Select Bedrock models",
+            card={
                 "title": "Model selection",
                 "body": "Pick your default and fast Bedrock models. You can reuse existing choices.",
                 "footer": "Controls: ↑/↓ move · Enter select",
             },
-        )
+        ):
+            model_id_default, model_id_fast, model_map = _handle_model_selection(
+                config, config_manager, console
+            )
 
-        model_id_default, model_id_fast, model_map = _handle_model_selection(
-            config, config_manager, console
-        )
-
-        summary_entries.append(
-            {
-                "message": "Models configured",
-                "level": "success",
-                "footer": f"Default: {model_id_default} · Fast: {model_id_fast}",
-            }
+        wizard.add_summary(
+            "Models configured",
+            level="success",
+            footer=f"Default: {model_id_default} · Fast: {model_id_fast}",
         )
 
         env.update(
@@ -343,27 +316,21 @@ def init_command(
             }
         )
 
-        redraw(active_message="Step 3 of 3 · Finalize setup")
+        wizard.render(active_message="Step 3 of 3 · Finalize setup")
 
         if config.cli.auto_start:
-            summary_entries.append(
-                {
-                    "message": "Auto-start enabled",
-                    "level": "success",
-                    "footer": "Launching Claude Code with your configuration",
-                }
+            wizard.add_summary(
+                "Auto-start enabled",
+                level="success",
+                footer="Launching Claude Code with your configuration",
             )
-            redraw()
             _launch_claude_cli(config, env)
         else:
-            summary_entries.append(
-                {
-                    "message": "Setup complete",
-                    "level": "success",
-                    "footer": f"Run `{config.cli.claude_cli_name}` when you're ready.",
-                }
+            wizard.add_summary(
+                "Setup complete",
+                level="success",
+                footer=f"Run `{config.cli.claude_cli_name}` when you're ready.",
             )
-            redraw()
 
     except subprocess.CalledProcessError as e:
         render_status(f"Setup failed. Exit code: {e.returncode}", level="error")

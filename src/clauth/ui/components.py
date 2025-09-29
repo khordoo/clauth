@@ -1,6 +1,7 @@
 """Reusable Rich components for the CLAUTH CLI."""
 
-from typing import Iterable, Optional
+from contextlib import contextmanager
+from typing import Callable, Iterable, Optional
 
 from rich import box
 from rich.align import Align
@@ -154,3 +155,58 @@ class Spinner:
     def __exit__(self, exc_type, exc_val, exc_tb):
         assert self._status is not None
         return self._status.__exit__(exc_type, exc_val, exc_tb)
+
+
+class WizardScreen:
+    """Utility to manage a multi-step wizard layout with a banner and summaries."""
+
+    def __init__(
+        self,
+        banner: Optional[Callable[[], None]] = None,
+    ) -> None:
+        self.banner = banner
+        self.summaries: list[dict[str, Optional[str]]] = []
+
+    def render(
+        self,
+        *,
+        active_message: Optional[str] = None,
+        card: Optional[dict] = None,
+    ) -> None:
+        console.clear()
+        if self.banner:
+            self.banner()
+
+        for entry in self.summaries:
+            render_status(
+                entry.get("message", ""),
+                level=entry.get("level", "info") or "info",
+                footer=entry.get("footer"),
+            )
+
+        if active_message:
+            render_status(active_message, level="info")
+
+        if card:
+            render_card(
+                title=card.get("title"),
+                body=card.get("body", ""),
+                footer=card.get("footer"),
+            )
+
+    def add_summary(self, message: str, *, level: str = "info", footer: Optional[str] = None) -> None:
+        self.summaries.append({"message": message, "level": level, "footer": footer})
+        self.render()
+
+    def add_summary_entry(self, summary: dict) -> None:
+        self.add_summary(
+            summary.get("message", ""),
+            level=summary.get("level", "info") or "info",
+            footer=summary.get("footer"),
+        )
+
+    @contextmanager
+    def step(self, label: str, *, card: Optional[dict] = None):
+        """Render a step header and optional card while executing the step."""
+        self.render(active_message=label, card=card)
+        yield
