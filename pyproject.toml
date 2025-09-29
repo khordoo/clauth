@@ -69,7 +69,7 @@ python_functions = ["test_*"]
 addopts = [
     "--strict-markers",
     "--strict-config",
-    "--cov=src/clauth",
+    "--cov=clauth",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-fail-under=83",
@@ -81,7 +81,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["src/clauth"]
+source = ["clauth"]
 omit = [
     "*/tests/*",
     "*/test_*",

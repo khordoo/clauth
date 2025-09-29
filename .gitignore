@@ -16,3 +16,7 @@ CLaude.md
 AGENTS.md
 plans.md
 .agents/
+
+#Testing
+.coverage
+htmlcov/
