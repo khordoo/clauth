@@ -7,6 +7,7 @@ from rich.align import Align
 from rich.console import Console, Group
 from rich.measure import Measurement
 from rich.panel import Panel
+from rich.rule import Rule
 from rich.text import Text
 
 from .theme import style
@@ -30,8 +31,14 @@ def render_banner(
     bullets: Optional[Iterable[str]] = None,
 ) -> Panel:
     """Render a welcome banner with optional bullet highlights."""
-    title_text = Text(title, style=f"bold {style('accent')}")
-    pieces: list[Text] = [title_text]
+    title_text = Text(title, style="bold")
+    try:
+        title_text.apply_gradient(style("accent"), style("accent_alt"))
+    except Exception:  # pragma: no cover - gradient requires rich>=13
+        title_text.stylize(f"bold {style('accent')}")
+
+    spacer = Text()
+    pieces: list = [title_text, spacer]
 
     if subtitle:
         subtitle_text = Text(subtitle, style=style("text_primary"))
