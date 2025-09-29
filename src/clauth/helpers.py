@@ -66,7 +66,7 @@ def choose_auth_method():
 
     return inquirer.select(
         message="Choose your authentication method:",
-        instruction="↑↓ move • Enter select",
+        instruction=None,
         choices=[
             {"name": "AWS SSO (for teams/organizations)", "value": "sso"},
             {"name": "IAM User Access Keys (for solo developers)", "value": "iam"},
@@ -189,6 +189,8 @@ def prompt_for_region_if_needed(config, cli_overrides):
             footer="Controls: ↑/↓ move · Enter select",
         )
 
+        custom_style = get_style(get_config_manager().get_custom_style())
+
         custom_region_option = "Other (enter custom region)"
         region_options = [
             "us-east-1",
@@ -203,13 +205,14 @@ def prompt_for_region_if_needed(config, cli_overrides):
 
         selected_option = inquirer.select(
             message="Region:",
-            instruction="↑↓ move • Enter select",
+            instruction=None,
             choices=region_options,
             default=config.aws.region
             if config.aws.region in region_options
             else "us-east-1",
             pointer="▶ ",
             amark="✔",
+            style=custom_style,
         ).execute()
 
         if selected_option == custom_region_option:

@@ -11,8 +11,11 @@ for better maintainability and modularity.
 """
 
 from .models import model_app
-from .delete import delete
+from . import delete as delete_module
 from .config import config_app
 from .init import init_command
 
-__all__ = ["model_app", "delete", "config_app", "init_command"]
+# Backwards-compatible alias for the delete function
+delete = delete_module.delete
+
+__all__ = ["model_app", "delete", "config_app", "init_command", "delete_module"]
