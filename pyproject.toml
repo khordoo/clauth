@@ -1,6 +1,6 @@
 [project]
 name = "clauth"
-version = "0.1.3"
+version = "0.1.4"
 description = "Streamlined AWS Bedrock setup for Claude Code - automated SSO, model discovery, and environment configuration"
 keywords = ["aws", "bedrock", "claude", "ai", "sso", "authentication", "cli", "anthropic", "llm"]
 readme = "README.release.md"
