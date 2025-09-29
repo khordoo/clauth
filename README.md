@@ -75,31 +75,7 @@ This command will:
 
 ### Sample CLI Experience
 
-```text
-╭──────────────────────────────────────────────────────────────────────────╮
-│                                                                          │
-│  CLAUTH                                                                  │
-│                                                                          │
-│  Quick setup for Claude Code with AWS Bedrock (SSO or IAM)               │
-│  - Requires AWS CLI v2                                                   │
-│  - Requires Claude Code CLI                                              │
-│  - Tip: run `clauth init --help` to view options                         │
-│                                                                          │
-╰──────────────────────────────────────────────────────────────────────────╯
-
-✔ Step 1 of 3 · Configure AWS authentication
- - Select AWS SSO or IAM keys
-
-✔ AWS region set to us-east-1
-
-╭─ Step 2 of 3 · AWS SSO configuration ────────────────────────────────────╮
-│ CLAUTH will use AWS CLI to open the SSO wizard.                          │
-│ [Delete configuration: clauth delete -y]                                 │
-│ Tip: SSO Start URL usually looks like: https://d-xxxxxx.awsapps.com/start│
-╰──────────────────────────────────────────────────────────────────────────╯
-
-[spinner] Discovering Bedrock models
-```
+![CLAUTH init wizard](assets/images/clauth-init.png)
 
 ### Command Options
 

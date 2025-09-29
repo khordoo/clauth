@@ -34,6 +34,8 @@ clauth
 - **Simple config management** (`clauth config show`, `clauth delete`)
 - **Modern CLI UI** featuring banners, cards, and spinners for each step
 
+![CLAUTH init wizard](assets/images/clauth-init.png)
+
 ---
 ## 📋 Requirements
 
